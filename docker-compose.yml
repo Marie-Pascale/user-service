@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: usagers-api
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: usagers
+      DB_PASSWORD: usagers_pwd
+      DB_NAME: usagers_db
+      DB_SSLMODE: disable
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - usagers-net
+
+  db:
+    image: postgres:16-alpine
+    container_name: usagers-db
+    environment:
+      POSTGRES_USER: usagers
+      POSTGRES_PASSWORD: usagers_pwd
+      POSTGRES_DB: usagers_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U usagers -d usagers_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - usagers-net
+
+volumes:
+  pg_data:
+
+networks:
+  usagers-net:
+    driver: bridge
