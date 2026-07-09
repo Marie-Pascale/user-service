@@ -21,16 +21,16 @@ API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
 
 ## Démarrage
 
-**Important** : ce projet dépend maintenant de `golang.org/x/crypto` (pour le hachage des mots de passe). Après avoir décompressé le projet, lance ceci une seule fois pour télécharger la dépendance et générer `go.sum` :
+**Recommandé** : ce projet dépend de `golang.org/x/crypto` (pour le hachage des mots de passe). Le build Docker télécharge cette dépendance automatiquement, donc ce n'est pas strictement requis pour `make up`. Mais pour que ton IDE (VS Code / gopls) résolve correctement les imports sans erreur pendant que tu édites, lance ceci une fois localement :
 
 ```bash
 go mod tidy
 ```
 
-Ensuite :
+Ensuite, pour démarrer les conteneurs :
 
 ```bash
-docker compose up --build
+make up
 ```
 
 L'API sera accessible sur `http://localhost:8080`.
@@ -58,12 +58,14 @@ docker compose down -v
 
 ## Tests
 
+Toutes les commandes ci-dessous s'exécutent **à l'intérieur du conteneur Docker**, pas sur ta machine — tu n'as donc pas besoin d'installer Go localement pour les lancer (seulement pour que ton IDE t'assiste en éditant les fichiers). Si les conteneurs ne sont pas démarrés, `make` les démarre automatiquement en mode détaché avant d'exécuter la commande.
+
 **Tests unitaires**
 ```bash
 make test              # lance tous les tests
 make test-verbose      # avec le detail de chaque cas
-make coverage          # genere un rapport de couverture (coverage.html)
-make race              # avec detection des race conditions
+make coverage          # genere un rapport de couverture (coverage.html, visible directement sur ton disque)
+make race               # avec detection des race conditions
 ```
 
 **Benchmarks** (performance au niveau du code)
@@ -73,10 +75,30 @@ make bench
 
 **Tests de charge** (performance de l'API sous requêtes concurrentes)
 
-Voir [`loadtest/README.md`](./loadtest/README.md). Nécessite que l'API tourne (`make up`).
+Voir [`loadtest/README.md`](./loadtest/README.md). Contrairement aux tests unitaires, `vegeta` doit être installé sur ta machine — il attaque l'API depuis l'extérieur, via le port publié (`localhost:8080`), pour simuler du vrai trafic réseau.
 ```bash
 make load-test-health
 ```
+
+**Autres commandes utiles**
+```bash
+make shell    # ouvre un shell dans le conteneur api, pour deboguer manuellement
+make down     # arrete les conteneurs
+```
+
+## Migrations
+
+Gérées avec [`golang-migrate`](https://github.com/golang-migrate/migrate), exécuté dans le conteneur `api` (installé via le `Dockerfile`). Les fichiers vivent dans `migrations/`, en paires `up`/`down` numérotées séquentiellement.
+
+```bash
+make migrate-up        # applique toutes les migrations en attente
+make migrate-down      # annule la derniere migration
+make migrate-reset     # annule TOUT le schema (destructif, dev seulement)
+make migrate-version   # affiche la version actuelle
+make migrate-create name=nom_de_la_migration   # cree une nouvelle paire up/down
+```
+
+Après `make up` la première fois, lance `make migrate-up` pour créer les tables.
 
 ## Entités du domaine
 
@@ -93,7 +115,7 @@ Les permissions effectives d'un usager = ses permissions directes + celles de se
 
 ## Prochaines étapes
 
-- Repositories PostgreSQL pour chaque entité (`internal/infrastructure/repository`)
+- Repositories PostgreSQL pour chaque entité (`internal/infrastructure/repository`), avec `pgx`
 - Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions)
 - Handlers HTTP dans `cmd/api/main.go`
 - Middleware d'authentification (JWT ou sessions)

@@ -1,6 +1,7 @@
 .PHONY: test test-verbose coverage race bench load-test-health up down ensure-up shell
 
 EXEC := docker compose exec api
+DB_URL := postgres://usagers:usagers_pwd@db:5432/usagers_db?sslmode=disable
 
 ## Conteneur ------------------------------------------------------------
 
@@ -39,3 +40,20 @@ bench: ensure-up ## Lance les benchmarks Go (performance au niveau du code)
 
 load-test-health: ensure-up ## Test de charge sur GET /health (50 req/s pendant 30s)
 	vegeta attack -targets=loadtest/health.http -rate=50 -duration=30s | vegeta report
+
+## Migrations (executees dans le conteneur) -------------------------------
+
+migrate-up: ensure-up ## Applique toutes les migrations en attente
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" up
+
+migrate-down: ensure-up ## Annule la derniere migration appliquee
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" down 1
+
+migrate-reset: ensure-up ## Annule TOUTES les migrations (efface le schema)
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" down -all
+
+migrate-version: ensure-up ## Affiche la version de migration actuelle
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" version
+
+migrate-create: ensure-up ## Cree une nouvelle migration : make migrate-create name=nom_de_la_migration
+	$(EXEC) migrate create -ext sql -dir ./migrations -seq $(name)
