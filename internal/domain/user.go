@@ -6,40 +6,53 @@ import (
 	"time"
 )
 
-// Role represente le role d'un usager dans le systeme.
-type Role string
-
-const (
-	RoleAdmin Role = "admin"
-	RoleUser  Role = "user"
-)
-
 // Erreurs de validation du domaine. Elles sont volontairement generiques
 // (pas de code HTTP ici) : c'est a la couche infrastructure de les traduire
 // en reponses HTTP appropriees (ex: 400 Bad Request).
 var (
 	ErrEmptyName    = errors.New("name is required")
 	ErrInvalidEmail = errors.New("invalid email")
-	ErrInvalidRole  = errors.New("invalid role")
+)
+
+// Status represente l'etat du compte d'un usager.
+type Status string
+
+const (
+	StatusActive    Status = "active"
+	StatusSuspended Status = "suspended"
 )
 
 // User est l'entite centrale du domaine. Elle ne depend d'aucune
 // bibliotheque externe (pas de driver Postgres, pas de net/http) :
 // c'est ce qui la rend testable et reutilisable independamment
 // de la couche de stockage ou de transport.
+//
+// Notez que User ne contient aucune information d'authentification
+// (mot de passe, etc.) -- celle-ci vit dans AuthMethod, une entite
+// separee, pour permettre plusieurs methodes d'authentification par
+// usager (mot de passe local, Google, Facebook...).
+//
+// RoleIDs et PermissionIDs representent les assignations *directes*.
+// Les permissions effectives d'un usager sont la resultante de ses
+// permissions directes + celles de ses roles directs + celles des
+// roles herites de ses groupes. Ce calcul est fait par la couche
+// application (voir AuthorizationService a venir), pas ici : User
+// ne stocke que des IDs, pas les entites Role/Permission completes.
 type User struct {
-	ID        string
-	Name      string
-	Email     string
-	Role      Role
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID            string
+	Name          string
+	Email         string
+	Status        Status
+	RoleIDs       []string
+	PermissionIDs []string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // NewUser cree un usager valide ou retourne une erreur de validation.
 // C'est le point d'entree unique pour construire un User : ca garantit
 // qu'aucun usager invalide ne peut exister ailleurs dans le systeme.
-func NewUser(id, name, email string, role Role) (*User, error) {
+func NewUser(id, name, email string) (*User, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrEmptyName
@@ -50,18 +63,16 @@ func NewUser(id, name, email string, role Role) (*User, error) {
 		return nil, ErrInvalidEmail
 	}
 
-	if role != RoleAdmin && role != RoleUser {
-		return nil, ErrInvalidRole
-	}
-
 	now := time.Now().UTC()
 	return &User{
-		ID:        id,
-		Name:      name,
-		Email:     email,
-		Role:      role,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:            id,
+		Name:          name,
+		Email:         email,
+		Status:        StatusActive,
+		RoleIDs:       []string{},
+		PermissionIDs: []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}, nil
 }
 
@@ -77,19 +88,36 @@ func isValidEmail(email string) bool {
 	return strings.Contains(domain, ".")
 }
 
-// IsAdmin indique si l'usager a le role administrateur.
-func (u *User) IsAdmin() bool {
-	return u.Role == RoleAdmin
+// IsActive indique si le compte de l'usager est actif.
+func (u *User) IsActive() bool {
+	return u.Status == StatusActive
 }
 
-// CanView encode la regle metier dont on parlait plus tot : un admin peut
-// voir n'importe quel usager, un usager normal ne peut voir que lui-meme.
-// Cette regle vit ici, dans le domaine, plutot que dans un handler HTTP ou
-// un middleware -- elle pourra etre testee et reutilisee sans dependre
-// du transport.
-func (u *User) CanView(target *User) bool {
-	if u.IsAdmin() {
-		return true
+// Suspend desactive le compte de l'usager.
+func (u *User) Suspend() {
+	u.Status = StatusSuspended
+	u.UpdatedAt = time.Now().UTC()
+}
+
+// AssignRole assigne un role directement a l'usager, s'il ne l'a pas deja.
+func (u *User) AssignRole(roleID string) {
+	for _, id := range u.RoleIDs {
+		if id == roleID {
+			return
+		}
 	}
-	return u.ID == target.ID
+	u.RoleIDs = append(u.RoleIDs, roleID)
+	u.UpdatedAt = time.Now().UTC()
+}
+
+// AssignPermission accorde une permission directement a l'usager,
+// en plus de celles heritees de ses roles.
+func (u *User) AssignPermission(permissionID string) {
+	for _, id := range u.PermissionIDs {
+		if id == permissionID {
+			return
+		}
+	}
+	u.PermissionIDs = append(u.PermissionIDs, permissionID)
+	u.UpdatedAt = time.Now().UTC()
 }

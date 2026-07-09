@@ -7,19 +7,17 @@ import (
 
 func TestNewUser(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      string
+		name     string
+		id       string
 		userName string
-		email   string
-		role    Role
-		wantErr error
+		email    string
+		wantErr  error
 	}{
 		{
 			name:     "usager valide",
 			id:       "1",
 			userName: "Alice",
 			email:    "alice@example.com",
-			role:     RoleUser,
 			wantErr:  nil,
 		},
 		{
@@ -27,7 +25,6 @@ func TestNewUser(t *testing.T) {
 			id:       "2",
 			userName: "",
 			email:    "bob@example.com",
-			role:     RoleUser,
 			wantErr:  ErrEmptyName,
 		},
 		{
@@ -35,7 +32,6 @@ func TestNewUser(t *testing.T) {
 			id:       "3",
 			userName: "   ",
 			email:    "bob@example.com",
-			role:     RoleUser,
 			wantErr:  ErrEmptyName,
 		},
 		{
@@ -43,7 +39,6 @@ func TestNewUser(t *testing.T) {
 			id:       "4",
 			userName: "Bob",
 			email:    "bob-example.com",
-			role:     RoleUser,
 			wantErr:  ErrInvalidEmail,
 		},
 		{
@@ -51,7 +46,6 @@ func TestNewUser(t *testing.T) {
 			id:       "5",
 			userName: "Bob",
 			email:    "bob@",
-			role:     RoleUser,
 			wantErr:  ErrInvalidEmail,
 		},
 		{
@@ -59,41 +53,34 @@ func TestNewUser(t *testing.T) {
 			id:       "6",
 			userName: "Bob",
 			email:    "bob@examplecom",
-			role:     RoleUser,
 			wantErr:  ErrInvalidEmail,
 		},
 		{
-			name:     "role invalide",
-			id:       "7",
-			userName: "Bob",
-			email:    "bob@example.com",
-			role:     Role("superadmin"),
-			wantErr:  ErrInvalidRole,
-		},
-		{
 			name:     "courriel normalise en minuscules",
-			id:       "8",
+			id:       "7",
 			userName: "Carole",
 			email:    "CAROLE@EXAMPLE.COM",
-			role:     RoleAdmin,
 			wantErr:  nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u, err := NewUser(tt.id, tt.userName, tt.email, tt.role)
+			u, err := NewUser(tt.id, tt.userName, tt.email)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("erreur = %v, attendu %v", err, tt.wantErr)
 			}
 
 			if tt.wantErr != nil {
-				return // pas besoin de verifier le reste si on attendait une erreur
+				return
 			}
 
 			if u.ID != tt.id {
 				t.Errorf("ID = %q, attendu %q", u.ID, tt.id)
+			}
+			if u.Status != StatusActive {
+				t.Errorf("Status = %q, attendu %q (un nouvel usager doit etre actif)", u.Status, StatusActive)
 			}
 			if u.CreatedAt.IsZero() {
 				t.Error("CreatedAt ne devrait pas etre a zero")
@@ -101,44 +88,52 @@ func TestNewUser(t *testing.T) {
 			if u.CreatedAt != u.UpdatedAt {
 				t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
 			}
-		})
-	}
-}
-
-func TestUser_IsAdmin(t *testing.T) {
-	admin, _ := NewUser("1", "Alice", "alice@example.com", RoleAdmin)
-	user, _ := NewUser("2", "Bob", "bob@example.com", RoleUser)
-
-	if !admin.IsAdmin() {
-		t.Error("un usager avec le role admin devrait retourner IsAdmin() == true")
-	}
-	if user.IsAdmin() {
-		t.Error("un usager avec le role user devrait retourner IsAdmin() == false")
-	}
-}
-
-func TestUser_CanView(t *testing.T) {
-	admin, _ := NewUser("1", "Alice", "alice@example.com", RoleAdmin)
-	userA, _ := NewUser("2", "Bob", "bob@example.com", RoleUser)
-	userB, _ := NewUser("3", "Carole", "carole@example.com", RoleUser)
-
-	tests := []struct {
-		name   string
-		actor  *User
-		target *User
-		want   bool
-	}{
-		{"un admin peut voir n'importe quel usager", admin, userA, true},
-		{"un usager peut se voir lui-meme", userA, userA, true},
-		{"un usager ne peut pas voir un autre usager", userA, userB, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tt.actor.CanView(tt.target)
-			if got != tt.want {
-				t.Errorf("CanView() = %v, attendu %v", got, tt.want)
+			if u.RoleIDs == nil || u.PermissionIDs == nil {
+				t.Error("RoleIDs et PermissionIDs devraient etre initialises (slices vides, pas nil)")
 			}
 		})
+	}
+}
+
+func TestUser_IsActive(t *testing.T) {
+	u, _ := NewUser("1", "Alice", "alice@example.com")
+
+	if !u.IsActive() {
+		t.Error("un nouvel usager devrait etre actif par defaut")
+	}
+
+	u.Suspend()
+
+	if u.IsActive() {
+		t.Error("un usager suspendu ne devrait plus etre actif")
+	}
+}
+
+func TestUser_AssignRole(t *testing.T) {
+	u, _ := NewUser("1", "Alice", "alice@example.com")
+
+	u.AssignRole("role-admin")
+	if len(u.RoleIDs) != 1 || u.RoleIDs[0] != "role-admin" {
+		t.Fatalf("RoleIDs = %v, attendu [\"role-admin\"]", u.RoleIDs)
+	}
+
+	// Assigner le meme role deux fois ne doit pas creer de doublon.
+	u.AssignRole("role-admin")
+	if len(u.RoleIDs) != 1 {
+		t.Errorf("RoleIDs = %v, un role duplique ne devrait pas etre ajoute", u.RoleIDs)
+	}
+}
+
+func TestUser_AssignPermission(t *testing.T) {
+	u, _ := NewUser("1", "Alice", "alice@example.com")
+
+	u.AssignPermission("perm-orders-read")
+	if len(u.PermissionIDs) != 1 || u.PermissionIDs[0] != "perm-orders-read" {
+		t.Fatalf("PermissionIDs = %v, attendu [\"perm-orders-read\"]", u.PermissionIDs)
+	}
+
+	u.AssignPermission("perm-orders-read")
+	if len(u.PermissionIDs) != 1 {
+		t.Errorf("PermissionIDs = %v, une permission dupliquee ne devrait pas etre ajoutee", u.PermissionIDs)
 	}
 }

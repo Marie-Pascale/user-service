@@ -21,6 +21,14 @@ API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
 
 ## Démarrage
 
+**Important** : ce projet dépend maintenant de `golang.org/x/crypto` (pour le hachage des mots de passe). Après avoir décompressé le projet, lance ceci une seule fois pour télécharger la dépendance et générer `go.sum` :
+
+```bash
+go mod tidy
+```
+
+Ensuite :
+
 ```bash
 docker compose up --build
 ```
@@ -70,9 +78,22 @@ Voir [`loadtest/README.md`](./loadtest/README.md). Nécessite que l'API tourne (
 make load-test-health
 ```
 
+## Entités du domaine
+
+| Entité | Rôle |
+|---|---|
+| `User` | L'usager (identité, sans authentification) |
+| `AuthMethod` | Une méthode d'authentification liée à un usager (mot de passe local, Google, Facebook...) — plusieurs par usager |
+| `Service` | Un service tiers de l'écosystème, identifié par son propre ID et une clé API |
+| `Permission` | Une permission précise, définie par un service (ex: `orders:read`) |
+| `Role` | Un regroupement nommé de permissions, pouvant couvrir plusieurs services |
+| `Group` | Un regroupement d'usagers ; les rôles assignés au groupe sont hérités par tous ses membres |
+
+Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Ce calcul sera fait par un service de la couche `application` (pas encore implémenté).
+
 ## Prochaines étapes
 
-- Connecter l'API à PostgreSQL (driver `pgx` recommandé)
-- Créer le modèle `User` (id, nom, courriel, etc.)
-- Ajouter les routes CRUD : `GET /users`, `POST /users`, `GET /users/{id}`, `PUT /users/{id}`, `DELETE /users/{id}`
-- Ajouter les migrations de base de données
+- Repositories PostgreSQL pour chaque entité (`internal/infrastructure/repository`)
+- Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions)
+- Handlers HTTP dans `cmd/api/main.go`
+- Middleware d'authentification (JWT ou sessions)
