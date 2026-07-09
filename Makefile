@@ -1,4 +1,4 @@
-.PHONY: test test-verbose coverage race bench load-test-health up down ensure-up shell
+.PHONY: test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell
 
 EXEC := docker compose exec api
 DB_URL := postgres://usagers:usagers_pwd@db:5432/usagers_db?sslmode=disable
@@ -20,8 +20,11 @@ shell: ensure-up ## Ouvre un shell dans le conteneur api
 
 ## Tests unitaires (executes dans le conteneur) --------------------------
 
-test: ensure-up ## Lance tous les tests unitaires
+test: ensure-up ## Lance tous les tests unitaires (rapide, sans base de donnees)
 	$(EXEC) go test ./...
+
+test-integration: ensure-up migrate-up ## Lance les tests d'integration (necessite la BD, plus lent)
+	$(EXEC) go test -tags=integration ./...
 
 test-verbose: ensure-up ## Lance tous les tests unitaires avec le detail de chaque cas
 	$(EXEC) go test -v ./...

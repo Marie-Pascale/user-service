@@ -62,11 +62,17 @@ Toutes les commandes ci-dessous s'exécutent **à l'intérieur du conteneur Dock
 
 **Tests unitaires**
 ```bash
-make test              # lance tous les tests
+make test              # lance tous les tests (rapide, ne touche pas a la BD)
 make test-verbose      # avec le detail de chaque cas
 make coverage          # genere un rapport de couverture (coverage.html, visible directement sur ton disque)
 make race               # avec detection des race conditions
 ```
+
+**Tests d'intégration** (contre une vraie base Postgres)
+```bash
+make test-integration   # applique les migrations puis lance les tests marques "integration"
+```
+Ces tests utilisent un [build tag](https://pkg.go.dev/go/build#hdr-Build_Constraints) Go (`//go:build integration`) pour rester séparés des tests unitaires — `go test ./...` seul ne les exécute jamais, il faut explicitement `-tags=integration`.
 
 **Benchmarks** (performance au niveau du code)
 ```bash
@@ -115,7 +121,7 @@ Les permissions effectives d'un usager = ses permissions directes + celles de se
 
 ## Prochaines étapes
 
-- Repositories PostgreSQL pour chaque entité (`internal/infrastructure/repository`), avec `pgx`
+- Repositories PostgreSQL pour les entités restantes (`AuthMethod`, `Service`, `Permission`, `Role`, `Group`) — même patron que `PostgresUserRepository`
 - Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions)
-- Handlers HTTP dans `cmd/api/main.go`
+- Handlers HTTP dans `cmd/api/main.go`, avec injection du repository
 - Middleware d'authentification (JWT ou sessions)
