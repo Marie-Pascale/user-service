@@ -1,4 +1,4 @@
-.PHONY: test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell
+.PHONY: test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy
 
 EXEC := docker compose exec api
 DB_URL := postgres://usagers:usagers_pwd@db:5432/usagers_db?sslmode=disable
@@ -17,6 +17,9 @@ down: ## Arrete les conteneurs
 
 shell: ensure-up ## Ouvre un shell dans le conteneur api
 	$(EXEC) sh
+
+mod-tidy: ensure-up ## Mets a jour les dependances du projet (go mod tidy), sans besoin de Go local
+	$(EXEC) go mod tidy
 
 ## Tests unitaires (executes dans le conteneur) --------------------------
 

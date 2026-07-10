@@ -1,2 +1,27 @@
-coverage.html
+# Sorties de tests generees localement (make coverage)
 coverage.out
+coverage.html
+
+# Dossier de build temporaire d'air (hot-reload, voir .air.toml)
+tmp/
+
+# Binaires compiles, au cas ou
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Fichiers d'environnement locaux (a ne jamais committer : secrets, mots
+# de passe reels en dehors du contexte docker-compose de developpement)
+.env
+.env.local
+
+# Fichiers specifiques a certains editeurs/OS
+.DS_Store
+.vscode/
+.idea/
+
+# NOTE : go.sum n'est PAS ignore, volontairement. C'est un fichier de
+# verrouillage des dependances (comme package-lock.json ou Cargo.lock) --
+# il doit etre commite pour garantir que tout le monde (et la CI) utilise
+# exactement les memes versions de dependances.

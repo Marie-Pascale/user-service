@@ -21,8 +21,15 @@ API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
 
 ## Démarrage
 
-**Recommandé** : ce projet dépend de `golang.org/x/crypto` (pour le hachage des mots de passe). Le build Docker télécharge cette dépendance automatiquement, donc ce n'est pas strictement requis pour `make up`. Mais pour que ton IDE (VS Code / gopls) résolve correctement les imports sans erreur pendant que tu édites, lance ceci une fois localement :
+**Obligatoire avant le tout premier `make up`** (seulement si `go.sum` n'existe pas encore dans le projet) : génère-le avec l'une de ces deux méthodes.
 
+**Sans Go installé localement** — via Docker :
+```bash
+make mod-tidy
+```
+Ça fonctionne même sans `go.sum` au départ : `docker-compose.yml` monte le dossier du projet en volume (`.:/app`), donc tout ce que `go mod tidy` écrit *à l'intérieur* du conteneur (le `go.sum`) apparaît directement sur ton disque, comme pour `coverage.html` plus tôt.
+
+**Avec Go installé localement** :
 ```bash
 go mod tidy
 ```
@@ -32,6 +39,8 @@ Ensuite, pour démarrer les conteneurs :
 ```bash
 make up
 ```
+
+Si tu ajoutes une nouvelle dépendance plus tard (un nouvel `import` externe), relance `make mod-tidy` pour mettre à jour `go.mod`/`go.sum` en conséquence.
 
 L'API sera accessible sur `http://localhost:8080`.
 La base PostgreSQL sera accessible sur `localhost:5432` (utile pour t'y connecter avec un client comme DBeaver ou psql).
