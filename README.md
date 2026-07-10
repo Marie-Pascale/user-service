@@ -130,7 +130,6 @@ Les permissions effectives d'un usager = ses permissions directes + celles de se
 
 ## Prochaines étapes
 
-- Repositories PostgreSQL pour les entités restantes (`AuthMethod`, `Service`, `Permission`, `Role`, `Group`) — même patron que `PostgresUserRepository`
-- Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions)
-- Handlers HTTP dans `cmd/api/main.go`, avec injection du repository
+- Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions : directes + rôles + groupes)
+- Handlers HTTP dans `cmd/api/main.go`, avec injection des repositories
 - Middleware d'authentification (JWT ou sessions)

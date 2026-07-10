@@ -1,0 +1,108 @@
+package repository
+
+import (
+	"context"
+	"errors"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"gestionnaire-usagers/internal/application"
+	"gestionnaire-usagers/internal/domain"
+)
+
+type PostgresServiceRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewPostgresServiceRepository(pool *pgxpool.Pool) *PostgresServiceRepository {
+	return &PostgresServiceRepository{pool: pool}
+}
+
+var _ application.ServiceRepository = (*PostgresServiceRepository)(nil)
+
+func (r *PostgresServiceRepository) Create(ctx context.Context, s *domain.Service) error {
+	const query = `
+		INSERT INTO services (id, name, description, api_key_hash, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`
+	_, err := r.pool.Exec(ctx, query, s.ID, s.Name, s.Description, s.APIKeyHash, s.CreatedAt)
+	return err
+}
+
+func (r *PostgresServiceRepository) GetByID(ctx context.Context, id string) (*domain.Service, error) {
+	const query = `
+		SELECT id, name, description, api_key_hash, created_at
+		FROM services
+		WHERE id = $1
+	`
+	return r.scanOne(ctx, query, id)
+}
+
+func (r *PostgresServiceRepository) GetByAPIKeyHash(ctx context.Context, apiKeyHash string) (*domain.Service, error) {
+	const query = `
+		SELECT id, name, description, api_key_hash, created_at
+		FROM services
+		WHERE api_key_hash = $1
+	`
+	return r.scanOne(ctx, query, apiKeyHash)
+}
+
+func (r *PostgresServiceRepository) scanOne(ctx context.Context, query string, arg any) (*domain.Service, error) {
+	var s domain.Service
+	err := r.pool.QueryRow(ctx, query, arg).Scan(&s.ID, &s.Name, &s.Description, &s.APIKeyHash, &s.CreatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, application.ErrNotFound
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+func (r *PostgresServiceRepository) List(ctx context.Context) ([]*domain.Service, error) {
+	const query = `
+		SELECT id, name, description, api_key_hash, created_at
+		FROM services
+		ORDER BY created_at DESC
+	`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	services := []*domain.Service{}
+	for rows.Next() {
+		var s domain.Service
+		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.APIKeyHash, &s.CreatedAt); err != nil {
+			return nil, err
+		}
+		services = append(services, &s)
+	}
+	return services, rows.Err()
+}
+
+func (r *PostgresServiceRepository) UpdateAPIKeyHash(ctx context.Context, id, newAPIKeyHash string) error {
+	const query = `UPDATE services SET api_key_hash = $2 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, id, newAPIKeyHash)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
+}
+
+func (r *PostgresServiceRepository) Delete(ctx context.Context, id string) error {
+	const query = `DELETE FROM services WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
+}
