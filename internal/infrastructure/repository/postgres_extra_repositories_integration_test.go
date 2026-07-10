@@ -182,6 +182,17 @@ func TestPostgresGroupRepository_MembersAndRoles(t *testing.T) {
 	if len(got.RoleIDs) != 1 || got.RoleIDs[0] != role.ID {
 		t.Errorf("RoleIDs = %v, attendu [%q]", got.RoleIDs, role.ID)
 	}
+
+	viaMembership, err := groupRepo.ListByMemberUserID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("ListByMemberUserID: %v", err)
+	}
+	if len(viaMembership) != 1 || viaMembership[0].ID != g.ID {
+		t.Errorf("ListByMemberUserID = %+v, attendu un groupe (%q)", viaMembership, g.ID)
+	}
+	if len(viaMembership[0].RoleIDs) != 1 || viaMembership[0].RoleIDs[0] != role.ID {
+		t.Errorf("RoleIDs via ListByMemberUserID = %v, attendu [%q]", viaMembership[0].RoleIDs, role.ID)
+	}
 }
 
 // --- AuthMethod --------------------------------------------------------

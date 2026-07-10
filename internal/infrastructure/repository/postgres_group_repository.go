@@ -42,19 +42,66 @@ func (r *PostgresGroupRepository) GetByID(ctx context.Context, id string) (*doma
 		return nil, err
 	}
 
-	members, err := r.idsFor(ctx, "group_members", "user_id", id)
-	if err != nil {
+	if err := r.hydrate(ctx, &g); err != nil {
 		return nil, err
+	}
+	return &g, nil
+}
+
+// hydrate remplit MemberUserIDs et RoleIDs a partir des tables de jonction.
+// Factorise GetByID et ListByMemberUserID, qui ont toutes deux besoin de
+// ces informations completes (contrairement a List, qui reste volontairement
+// legere -- voir la note dans List).
+func (r *PostgresGroupRepository) hydrate(ctx context.Context, g *domain.Group) error {
+	members, err := r.idsFor(ctx, "group_members", "user_id", g.ID)
+	if err != nil {
+		return err
 	}
 	g.MemberUserIDs = members
 
-	roles, err := r.idsFor(ctx, "group_roles", "role_id", id)
+	roles, err := r.idsFor(ctx, "group_roles", "role_id", g.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	g.RoleIDs = roles
 
-	return &g, nil
+	return nil
+}
+
+// ListByMemberUserID retourne les groupes dont l'usager est membre, avec
+// leurs roles herites deja charges -- utilise par AuthorizationService.
+func (r *PostgresGroupRepository) ListByMemberUserID(ctx context.Context, userID string) ([]*domain.Group, error) {
+	const query = `
+		SELECT g.id, g.name, g.description
+		FROM groups g
+		JOIN group_members gm ON gm.group_id = g.id
+		WHERE gm.user_id = $1
+	`
+	rows, err := r.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	groups := []*domain.Group{}
+	for rows.Next() {
+		var g domain.Group
+		if err := rows.Scan(&g.ID, &g.Name, &g.Description); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		groups = append(groups, &g)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for _, g := range groups {
+		if err := r.hydrate(ctx, g); err != nil {
+			return nil, err
+		}
+	}
+	return groups, nil
 }
 
 func (r *PostgresGroupRepository) idsFor(ctx context.Context, table, column, groupID string) ([]string, error) {

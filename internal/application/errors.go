@@ -10,3 +10,8 @@ import "errors"
 // de la meme facon, pour que le code appelant n'ait pas a connaitre
 // les details de l'implementation (ex: pgx.ErrNoRows).
 var ErrNotFound = errors.New("resource not found")
+
+// ErrProviderAccountAlreadyLinked est retournee quand un compte tiers
+// (Google, Facebook...) est deja lie a un AUTRE usager que celui pour
+// lequel on tente l'association.
+var ErrProviderAccountAlreadyLinked = errors.New("provider account already linked to another user")

@@ -137,3 +137,45 @@ func TestUser_AssignPermission(t *testing.T) {
 		t.Errorf("PermissionIDs = %v, une permission dupliquee ne devrait pas etre ajoutee", u.PermissionIDs)
 	}
 }
+
+func TestUser_UpdateProfile(t *testing.T) {
+	t.Run("met a jour nom et courriel valides", func(t *testing.T) {
+		u, _ := NewUser("1", "Alice", "alice@example.com")
+		u.AssignRole("role-1") // pour verifier que ca survit a la mise a jour
+
+		err := u.UpdateProfile("Alice Dupont", "ALICE.DUPONT@EXAMPLE.COM")
+		if err != nil {
+			t.Fatalf("erreur inattendue: %v", err)
+		}
+		if u.Name != "Alice Dupont" {
+			t.Errorf("Name = %q, attendu %q", u.Name, "Alice Dupont")
+		}
+		if u.Email != "alice.dupont@example.com" {
+			t.Errorf("Email = %q, attendu la version en minuscules", u.Email)
+		}
+		if len(u.RoleIDs) != 1 {
+			t.Error("RoleIDs ne devrait pas etre affecte par UpdateProfile")
+		}
+	})
+
+	t.Run("rejette un nom vide sans modifier l'usager", func(t *testing.T) {
+		u, _ := NewUser("1", "Alice", "alice@example.com")
+
+		err := u.UpdateProfile("", "nouveau@example.com")
+		if err != ErrEmptyName {
+			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyName)
+		}
+		if u.Name != "Alice" {
+			t.Error("Name ne devrait pas avoir change apres une validation echouee")
+		}
+	})
+
+	t.Run("rejette un courriel invalide", func(t *testing.T) {
+		u, _ := NewUser("1", "Alice", "alice@example.com")
+
+		err := u.UpdateProfile("Alice", "pas-un-courriel")
+		if err != ErrInvalidEmail {
+			t.Errorf("erreur = %v, attendu %v", err, ErrInvalidEmail)
+		}
+	})
+}

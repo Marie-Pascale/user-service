@@ -121,3 +121,24 @@ func (u *User) AssignPermission(permissionID string) {
 	u.PermissionIDs = append(u.PermissionIDs, permissionID)
 	u.UpdatedAt = time.Now().UTC()
 }
+
+// UpdateProfile modifie le nom et le courriel d'un usager existant, avec
+// la meme validation que NewUser. Centralise cette regle ici plutot que
+// de la dupliquer (ou de reconstruire un User via NewUser, ce qui
+// ecraserait aussi Status/RoleIDs/PermissionIDs/CreatedAt par erreur).
+func (u *User) UpdateProfile(name, email string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ErrEmptyName
+	}
+
+	email = strings.TrimSpace(strings.ToLower(email))
+	if !isValidEmail(email) {
+		return ErrInvalidEmail
+	}
+
+	u.Name = name
+	u.Email = email
+	u.UpdatedAt = time.Now().UTC()
+	return nil
+}

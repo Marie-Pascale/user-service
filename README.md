@@ -19,6 +19,13 @@ API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
 └── go.mod                 # Dépendances Go
 ```
 
+## Commandes disponibles
+
+```bash
+make
+```
+(ou `make help`, équivalent) Liste toutes les cibles du `Makefile` avec leur description, générée automatiquement à partir des commentaires `## ...` qui suivent chaque cible — pas besoin de maintenir cette liste à la main : ajoute simplement `## description` après une nouvelle cible et elle apparaîtra dans le menu.
+
 ## Démarrage
 
 **Obligatoire avant le tout premier `make up`** (seulement si `go.sum` n'existe pas encore dans le projet) : génère-le avec l'une de ces deux méthodes.
@@ -128,8 +135,36 @@ Après `make up` la première fois, lance `make migrate-up` pour créer les tabl
 
 Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Ce calcul sera fait par un service de la couche `application` (pas encore implémenté).
 
+## Cas d'usage (`internal/application`)
+
+| Cas d'usage | Rôle |
+|---|---|
+| `CreateUserUseCase` | Crée un usager, rejette les courriels déjà utilisés |
+| `RegisterAuthMethodUseCase` | Ajoute une méthode d'authentification (locale ou OAuth) à un usager existant |
+| `AuthenticateUserUseCase` | Connexion par mot de passe local ; retourne toujours la même erreur en cas d'échec (anti-énumération) |
+| `AuthorizationService` | Résout les permissions effectives d'un usager pour un service : directes + rôles directs + rôles hérités des groupes |
+
+Chacun est testé avec des repositories **en mémoire** (`internal/application/fakes_test.go`) plutôt que Postgres — rapide, déterministe, aucun besoin que `make up` tourne pour ces tests-là (`make test` suffit).
+
+## Endpoints HTTP
+
+| Méthode | Route | Description |
+|---|---|---|
+| `GET` | `/health` | Vérifie que le serveur répond |
+| `POST` | `/users` | Crée un usager (`{"name", "email"}`) |
+| `GET` | `/users` | Liste tous les usagers |
+| `GET` | `/users/{id}` | Récupère un usager |
+| `PUT` | `/users/{id}` | Met à jour nom/courriel |
+| `DELETE` | `/users/{id}` | Supprime un usager |
+| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) |
+| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager, **pas encore de token** (voir prochaine étape) |
+
+Aucune route n'est protégée pour l'instant — le middleware d'authentification est la prochaine étape.
+
 ## Prochaines étapes
 
-- Cas d'usage dans `internal/application` : `CreateUser`, `RegisterAuthMethod`, `AuthorizationService` (résolution des permissions : directes + rôles + groupes)
-- Handlers HTTP dans `cmd/api/main.go`, avec injection des repositories
-- Middleware d'authentification (JWT ou sessions)
+- Middleware d'authentification :
+  - Clé API des services tiers (via `Service.VerifyAPIKey`) — pour que les autres services de l'écosystème consultent les permissions d'un usager
+  - Session/JWT pour les usagers — nécessite de choisir un mécanisme de token et de le retourner depuis `POST /auth/login`
+- Handlers HTTP pour `Service`, `Permission`, `Role`, `Group` (même patron que `UserHandler`)
+- Endpoint exposant `AuthorizationService.ResolvePermissionKeys` pour les services tiers
