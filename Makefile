@@ -1,7 +1,14 @@
-.PHONY: test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy
+.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy
+
+.DEFAULT_GOAL := help
 
 EXEC := docker compose exec api
 DB_URL := postgres://usagers:usagers_pwd@db:5432/usagers_db?sslmode=disable
+
+help: ## Affiche cette liste de commandes
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
+		| sort \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 ## Conteneur ------------------------------------------------------------
 
