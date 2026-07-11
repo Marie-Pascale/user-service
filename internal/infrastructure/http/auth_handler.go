@@ -11,7 +11,7 @@ type AuthHandler struct {
 	RegisterAuthMethod *application.RegisterAuthMethodUseCase
 	Authenticate       *application.AuthenticateUserUseCase
 	CreateSession      *application.CreateSessionUseCase
-	Logout             *application.LogoutUseCase
+	LogoutUseCase      *application.LogoutUseCase
 }
 
 func NewAuthHandler(
@@ -24,7 +24,7 @@ func NewAuthHandler(
 		RegisterAuthMethod: registerAuthMethod,
 		Authenticate:       authenticate,
 		CreateSession:      createSession,
-		Logout:             logout,
+		LogoutUseCase:      logout,
 	}
 }
 
@@ -88,7 +88,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Logout.Execute(r.Context(), session.ID); err != nil {
+	if err := h.LogoutUseCase.Execute(r.Context(), session.ID); err != nil {
 		writeError(w, err)
 		return
 	}
