@@ -30,6 +30,10 @@ func main() {
 	// --- Repositories --------------------------------------------------
 	users := repository.NewPostgresUserRepository(pool)
 	authMethods := repository.NewPostgresAuthMethodRepository(pool)
+	services := repository.NewPostgresServiceRepository(pool)
+	roles := repository.NewPostgresRoleRepository(pool)
+	groups := repository.NewPostgresGroupRepository(pool)
+	permissions := repository.NewPostgresPermissionRepository(pool)
 
 	// --- Securite --------------------------------------------------------
 	hasher := security.NewBcryptHasher()
@@ -40,11 +44,16 @@ func main() {
 	createUser := application.NewCreateUserUseCase(users)
 	registerAuthMethod := application.NewRegisterAuthMethodUseCase(users, authMethods, hasher)
 	authenticate := application.NewAuthenticateUserUseCase(users, authMethods, hasher)
+	authorization := application.NewAuthorizationService(users, roles, groups, permissions)
 
 	// --- HTTP --------------------------------------------------------------
 	userHandler := httpapi.NewUserHandler(createUser, users)
 	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate)
-	mux := httpapi.NewRouter(userHandler, authHandler)
+	serviceHandler := httpapi.NewServiceHandler(services)
+	permissionsHandler := httpapi.NewPermissionsHandler(authorization)
+	serviceAuth := httpapi.NewServiceAuthMiddleware(services)
+
+	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

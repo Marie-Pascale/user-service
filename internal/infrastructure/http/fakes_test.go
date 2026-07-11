@@ -71,3 +71,68 @@ func (f *fakeUserRepo) Delete(ctx context.Context, id string) error {
 }
 
 var _ application.UserRepository = (*fakeUserRepo)(nil)
+
+// fakeServiceRepo est une implementation en memoire de
+// application.ServiceRepository, pour tester le middleware sans base
+// de donnees.
+type fakeServiceRepo struct {
+	byID       map[string]*domain.Service
+	byKeyHash  map[string]*domain.Service
+}
+
+func newFakeServiceRepo() *fakeServiceRepo {
+	return &fakeServiceRepo{byID: map[string]*domain.Service{}, byKeyHash: map[string]*domain.Service{}}
+}
+
+func (f *fakeServiceRepo) Create(ctx context.Context, s *domain.Service) error {
+	f.byID[s.ID] = s
+	f.byKeyHash[s.APIKeyHash] = s
+	return nil
+}
+
+func (f *fakeServiceRepo) GetByID(ctx context.Context, id string) (*domain.Service, error) {
+	s, ok := f.byID[id]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return s, nil
+}
+
+func (f *fakeServiceRepo) GetByAPIKeyHash(ctx context.Context, hash string) (*domain.Service, error) {
+	s, ok := f.byKeyHash[hash]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return s, nil
+}
+
+func (f *fakeServiceRepo) List(ctx context.Context) ([]*domain.Service, error) {
+	out := make([]*domain.Service, 0, len(f.byID))
+	for _, s := range f.byID {
+		out = append(out, s)
+	}
+	return out, nil
+}
+
+func (f *fakeServiceRepo) UpdateAPIKeyHash(ctx context.Context, id, newHash string) error {
+	s, ok := f.byID[id]
+	if !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byKeyHash, s.APIKeyHash)
+	s.APIKeyHash = newHash
+	f.byKeyHash[newHash] = s
+	return nil
+}
+
+func (f *fakeServiceRepo) Delete(ctx context.Context, id string) error {
+	s, ok := f.byID[id]
+	if !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	delete(f.byKeyHash, s.APIKeyHash)
+	return nil
+}
+
+var _ application.ServiceRepository = (*fakeServiceRepo)(nil)

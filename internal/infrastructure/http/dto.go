@@ -81,3 +81,18 @@ type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+type createServiceRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// createServiceResponse est le SEUL endroit ou APIKey (en clair) apparait
+// jamais dans une reponse HTTP -- exactement comme domain.NewService le
+// garantit deja au niveau du domaine (voir domain/service.go).
+type createServiceResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	APIKey      string `json:"api_key"`
+}

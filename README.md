@@ -148,23 +148,35 @@ Chacun est testé avec des repositories **en mémoire** (`internal/application/f
 
 ## Endpoints HTTP
 
-| Méthode | Route | Description |
-|---|---|---|
-| `GET` | `/health` | Vérifie que le serveur répond |
-| `POST` | `/users` | Crée un usager (`{"name", "email"}`) |
-| `GET` | `/users` | Liste tous les usagers |
-| `GET` | `/users/{id}` | Récupère un usager |
-| `PUT` | `/users/{id}` | Met à jour nom/courriel |
-| `DELETE` | `/users/{id}` | Supprime un usager |
-| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) |
-| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager, **pas encore de token** (voir prochaine étape) |
+| Méthode | Route | Description | Protection |
+|---|---|---|---|
+| `GET` | `/health` | Vérifie que le serveur répond | Aucune |
+| `POST` | `/users` | Crée un usager (`{"name", "email"}`) | Aucune |
+| `GET` | `/users` | Liste tous les usagers | Aucune |
+| `GET` | `/users/{id}` | Récupère un usager | Aucune |
+| `PUT` | `/users/{id}` | Met à jour nom/courriel | Aucune |
+| `DELETE` | `/users/{id}` | Supprime un usager | Aucune |
+| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) | Aucune |
+| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager, **pas encore de token** | Aucune |
+| `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Aucune ⚠️ (voir note ci-dessous) |
+| `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 
-Aucune route n'est protégée pour l'instant — le middleware d'authentification est la prochaine étape.
+**⚠️ Sécurité connue et volontairement incomplète** : `POST /services` n'est pas encore protégée — n'importe qui peut créer un service et obtenir une clé API. Cette route devra être restreinte aux administrateurs une fois l'authentification usager en place. `GET /users/{id}/permissions` est la seule route protégée pour l'instant, via le nouveau middleware par clé API.
+
+**Exemple d'utilisation du middleware** :
+```bash
+# 1. Creer un service, recuperer sa cle API (affichee UNE SEULE FOIS)
+curl -X POST localhost:8080/services -d '{"name":"orders-service","description":""}'
+# -> {"id":"...", "api_key":"a1b2c3..."}
+
+# 2. Utiliser cette cle pour consulter les permissions d'un usager
+curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
+# -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
+```
 
 ## Prochaines étapes
 
-- Middleware d'authentification :
-  - Clé API des services tiers (via `Service.VerifyAPIKey`) — pour que les autres services de l'écosystème consultent les permissions d'un usager
-  - Session/JWT pour les usagers — nécessite de choisir un mécanisme de token et de le retourner depuis `POST /auth/login`
-- Handlers HTTP pour `Service`, `Permission`, `Role`, `Group` (même patron que `UserHandler`)
+- Middleware de session/JWT pour les usagers — tu as choisi une **session opaque stockée en base** (révocable immédiatement, contrairement à un JWT signé). Nécessite : une entité `Session` dans le domaine, un `SessionRepository`, et `POST /auth/login` qui retourne enfin un token
+- Protéger `POST /services` une fois l'authentification usager en place (probablement via un rôle "admin")
+- Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`)
 - Endpoint exposant `AuthorizationService.ResolvePermissionKeys` pour les services tiers

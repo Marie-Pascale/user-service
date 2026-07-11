@@ -47,7 +47,7 @@ func NewService(id, name, description string) (svc *Service, plainAPIKey string,
 		ID:          id,
 		Name:        name,
 		Description: description,
-		APIKeyHash:  hashAPIKey(plainAPIKey),
+		APIKeyHash:  HashAPIKey(plainAPIKey),
 		CreatedAt:   time.Now().UTC(),
 	}
 	return svc, plainAPIKey, nil
@@ -56,7 +56,7 @@ func NewService(id, name, description string) (svc *Service, plainAPIKey string,
 // VerifyAPIKey retourne true si la cle en clair fournie correspond
 // a celle de ce service.
 func (s *Service) VerifyAPIKey(plainAPIKey string) bool {
-	return hashAPIKey(plainAPIKey) == s.APIKeyHash
+	return HashAPIKey(plainAPIKey) == s.APIKeyHash
 }
 
 // RotateAPIKey genere une nouvelle cle API pour ce service, invalidant
@@ -67,7 +67,7 @@ func (s *Service) RotateAPIKey() (plainAPIKey string, err error) {
 	if err != nil {
 		return "", err
 	}
-	s.APIKeyHash = hashAPIKey(plainAPIKey)
+	s.APIKeyHash = HashAPIKey(plainAPIKey)
 	return plainAPIKey, nil
 }
 
@@ -81,8 +81,12 @@ func generateAPIKey() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// hashAPIKey hache une cle API en clair avec SHA-256.
-func hashAPIKey(plainAPIKey string) string {
+// HashAPIKey hache une cle API en clair avec SHA-256. Exportee (pas
+// hashAPIKey) parce que le middleware d'authentification des services,
+// dans la couche infrastructure, doit hacher la cle recue AVANT de la
+// chercher en base via ServiceRepository.GetByAPIKeyHash -- la recherche
+// se fait par hash, jamais par cle en clair.
+func HashAPIKey(plainAPIKey string) string {
 	sum := sha256.Sum256([]byte(plainAPIKey))
 	return hex.EncodeToString(sum[:])
 }
