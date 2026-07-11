@@ -132,8 +132,9 @@ Après `make up` la première fois, lance `make migrate-up` pour créer les tabl
 | `Permission` | Une permission précise, définie par un service (ex: `orders:read`) |
 | `Role` | Un regroupement nommé de permissions, pouvant couvrir plusieurs services |
 | `Group` | Un regroupement d'usagers ; les rôles assignés au groupe sont hérités par tous ses membres |
+| `Session` | Une connexion active d'un usager — jeton opaque stocké en base, révocable immédiatement (voir `UserAuthMiddleware`) |
 
-Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Ce calcul sera fait par un service de la couche `application` (pas encore implémenté).
+Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Calculé par `AuthorizationService.ResolvePermissionKeys` dans la couche `application`.
 
 ## Cas d'usage (`internal/application`)
 
@@ -157,26 +158,48 @@ Chacun est testé avec des repositories **en mémoire** (`internal/application/f
 | `PUT` | `/users/{id}` | Met à jour nom/courriel | Aucune |
 | `DELETE` | `/users/{id}` | Supprime un usager | Aucune |
 | `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) | Aucune |
-| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager, **pas encore de token** | Aucune |
+| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager **et un jeton de session** | Aucune |
+| `POST` | `/auth/logout` | Révoque la session courante | **Session** (`Authorization: Bearer`) |
+| `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
 | `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Aucune ⚠️ (voir note ci-dessous) |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 
-**⚠️ Sécurité connue et volontairement incomplète** : `POST /services` n'est pas encore protégée — n'importe qui peut créer un service et obtenir une clé API. Cette route devra être restreinte aux administrateurs une fois l'authentification usager en place. `GET /users/{id}/permissions` est la seule route protégée pour l'instant, via le nouveau middleware par clé API.
+**⚠️ Sécurité connue et volontairement incomplète** : `POST /services` n'est pas encore protégée — n'importe qui peut créer un service et obtenir une clé API. Cette route devra être restreinte aux administrateurs une fois qu'un rôle "admin" sera vérifié dans `UserAuthMiddleware` (ou un middleware d'autorisation séparé, branché sur `AuthorizationService`).
 
-**Exemple d'utilisation du middleware** :
+**Deux mécanismes d'authentification distincts, deux en-têtes distincts** — volontaire, pour ne jamais les confondre :
+- Services tiers → `X-API-Key: <clé>` (clé permanente jusqu'à rotation)
+- Usagers → `Authorization: Bearer <jeton>` (jeton de session, expire après 24h ou après `/auth/logout`)
+
+**Exemple d'utilisation de bout en bout** :
 ```bash
-# 1. Creer un service, recuperer sa cle API (affichee UNE SEULE FOIS)
+# 1. Creer un usager et lui definir un mot de passe
+curl -X POST localhost:8080/users -d '{"name":"Alice","email":"alice@example.com"}'
+curl -X POST localhost:8080/users/<user-id>/password -d '{"password":"s3cret"}'
+
+# 2. Se connecter -- recupere un jeton de session
+curl -X POST localhost:8080/auth/login -d '{"email":"alice@example.com","password":"s3cret"}'
+# -> {"user": {...}, "token": "a1b2c3...", "expires_at": "..."}
+
+# 3. Utiliser ce jeton pour consulter son propre profil
+curl localhost:8080/me -H "Authorization: Bearer a1b2c3..."
+
+# 4. Se deconnecter -- revoque la session immediatement (contrairement a un JWT)
+curl -X POST localhost:8080/auth/logout -H "Authorization: Bearer a1b2c3..."
+
+# --- Cote services tiers (mecanisme separe, cle API) ---
+
+# 5. Creer un service, recuperer sa cle API (affichee UNE SEULE FOIS)
 curl -X POST localhost:8080/services -d '{"name":"orders-service","description":""}'
 # -> {"id":"...", "api_key":"a1b2c3..."}
 
-# 2. Utiliser cette cle pour consulter les permissions d'un usager
+# 6. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
 ```
 
 ## Prochaines étapes
 
-- Middleware de session/JWT pour les usagers — tu as choisi une **session opaque stockée en base** (révocable immédiatement, contrairement à un JWT signé). Nécessite : une entité `Session` dans le domaine, un `SessionRepository`, et `POST /auth/login` qui retourne enfin un token
-- Protéger `POST /services` une fois l'authentification usager en place (probablement via un rôle "admin")
+- Middleware/logique d'autorisation par permission (au-dela de la simple authentification) — brancher `AuthorizationService.HasPermission` sur des routes specifiques, ex: proteger `POST /services` derriere une permission "admin"
+- Purge periodique des sessions expirees (actuellement, une session expiree n'est supprimee qu'au moment ou elle est *utilisee* — voir `UserAuthMiddleware`)
 - Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`)
-- Endpoint exposant `AuthorizationService.ResolvePermissionKeys` pour les services tiers
+- Migration des routes existantes (`GET/PUT/DELETE /users/{id}`) vers une protection par session, avec la règle "un usager ne voit que lui-même, sauf un admin" évoquée en concevant le domaine

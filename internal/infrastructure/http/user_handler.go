@@ -103,3 +103,17 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// Me gere GET /me -- protegee par UserAuthMiddleware. C'est l'endpoint
+// evoque tout au debut du projet : un usager peut voir SON PROPRE profil
+// sans connaitre (ni avoir besoin de connaitre) son propre ID -- celui-ci
+// vient du contexte, pose par le middleware a partir de la session, jamais
+// d'un parametre d'URL.
+func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
+	u, ok := UserFromContext(r.Context())
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthenticated"})
+		return
+	}
+	writeJSON(w, http.StatusOK, newUserResponse(u))
+}

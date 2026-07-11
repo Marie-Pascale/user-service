@@ -13,6 +13,11 @@ import (
 	"gestionnaire-usagers/internal/infrastructure/security"
 )
 
+// sessionTTL controle la duree de vie d'une session usager. Fixe en dur
+// pour l'instant -- pourrait devenir une variable d'environnement si le
+// besoin de le configurer par environnement (dev/prod) se presente.
+const sessionTTL = 24 * time.Hour
+
 // main est la racine de composition (composition root) : le SEUL endroit
 // du projet ou les types concrets (PostgresUserRepository, BcryptHasher...)
 // sont references directement. Tout le reste du code (application,
@@ -34,26 +39,30 @@ func main() {
 	roles := repository.NewPostgresRoleRepository(pool)
 	groups := repository.NewPostgresGroupRepository(pool)
 	permissions := repository.NewPostgresPermissionRepository(pool)
+	sessions := repository.NewPostgresSessionRepository(pool)
 
 	// --- Securite --------------------------------------------------------
 	hasher := security.NewBcryptHasher()
 
 	// --- Cas d'usage -----------------------------------------------------
 	// Injectes avec les interfaces (UserRepository, AuthMethodRepository,
-	// domain.PasswordHasher), jamais les types concrets ci-dessus.
+	// domain.PasswordHasher...), jamais les types concrets ci-dessus.
 	createUser := application.NewCreateUserUseCase(users)
 	registerAuthMethod := application.NewRegisterAuthMethodUseCase(users, authMethods, hasher)
 	authenticate := application.NewAuthenticateUserUseCase(users, authMethods, hasher)
 	authorization := application.NewAuthorizationService(users, roles, groups, permissions)
+	createSession := application.NewCreateSessionUseCase(sessions, sessionTTL)
+	logout := application.NewLogoutUseCase(sessions)
 
 	// --- HTTP --------------------------------------------------------------
 	userHandler := httpapi.NewUserHandler(createUser, users)
-	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate)
+	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate, createSession, logout)
 	serviceHandler := httpapi.NewServiceHandler(services)
 	permissionsHandler := httpapi.NewPermissionsHandler(authorization)
 	serviceAuth := httpapi.NewServiceAuthMiddleware(services)
+	userAuth := httpapi.NewUserAuthMiddleware(sessions, users)
 
-	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth)
+	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth, userAuth)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

@@ -136,3 +136,60 @@ func (f *fakeServiceRepo) Delete(ctx context.Context, id string) error {
 }
 
 var _ application.ServiceRepository = (*fakeServiceRepo)(nil)
+
+// fakeSessionRepo est une implementation en memoire de
+// application.SessionRepository, pour tester UserAuthMiddleware sans
+// base de donnees.
+type fakeSessionRepo struct {
+	byID        map[string]*domain.Session
+	byTokenHash map[string]*domain.Session
+}
+
+func newFakeSessionRepo() *fakeSessionRepo {
+	return &fakeSessionRepo{byID: map[string]*domain.Session{}, byTokenHash: map[string]*domain.Session{}}
+}
+
+func (f *fakeSessionRepo) Create(ctx context.Context, s *domain.Session) error {
+	f.byID[s.ID] = s
+	f.byTokenHash[s.TokenHash] = s
+	return nil
+}
+
+func (f *fakeSessionRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Session, error) {
+	s, ok := f.byTokenHash[tokenHash]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return s, nil
+}
+
+func (f *fakeSessionRepo) Touch(ctx context.Context, id string) error {
+	s, ok := f.byID[id]
+	if !ok {
+		return application.ErrNotFound
+	}
+	s.Touch()
+	return nil
+}
+
+func (f *fakeSessionRepo) Delete(ctx context.Context, id string) error {
+	s, ok := f.byID[id]
+	if !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	delete(f.byTokenHash, s.TokenHash)
+	return nil
+}
+
+func (f *fakeSessionRepo) DeleteAllForUser(ctx context.Context, userID string) error {
+	for id, s := range f.byID {
+		if s.UserID == userID {
+			delete(f.byID, id)
+			delete(f.byTokenHash, s.TokenHash)
+		}
+	}
+	return nil
+}
+
+var _ application.SessionRepository = (*fakeSessionRepo)(nil)

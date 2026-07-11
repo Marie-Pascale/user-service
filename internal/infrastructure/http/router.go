@@ -6,17 +6,17 @@ import "net/http"
 // avec le support natif des methodes HTTP et des variables de chemin --
 // voir la discussion sur ServeMux plus tot dans le projet).
 //
-// Le middleware serviceAuth n'enveloppe QUE la route qui en a besoin
-// (GET /users/{id}/permissions) -- pas le mux entier. Envelopper tout le
-// mux protegerait aussi /health ou POST /users, ce qui n'est pas voulu
-// (voir la discussion sur le placement des middlewares plus tot dans
-// le projet).
+// Chaque middleware n'enveloppe QUE les routes qui en ont besoin -- pas le
+// mux entier. Envelopper tout le mux protegerait aussi /health ou
+// POST /users, ce qui n'est pas voulu (voir la discussion sur le
+// placement des middlewares plus tot dans le projet).
 func NewRouter(
 	userHandler *UserHandler,
 	authHandler *AuthHandler,
 	serviceHandler *ServiceHandler,
 	permissionsHandler *PermissionsHandler,
 	serviceAuth *ServiceAuthMiddleware,
+	userAuth *UserAuthMiddleware,
 ) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -33,9 +33,12 @@ func NewRouter(
 
 	mux.HandleFunc("POST /services", serviceHandler.Create)
 
-	// Route protegee : seuls les services tiers authentifies par cle API
-	// peuvent consulter les permissions d'un usager.
+	// Routes protegees par cle API (services tiers).
 	mux.Handle("GET /users/{id}/permissions", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.ListForUser)))
+
+	// Routes protegees par session (usagers).
+	mux.Handle("GET /me", userAuth.Authenticate(http.HandlerFunc(userHandler.Me)))
+	mux.Handle("POST /auth/logout", userAuth.Authenticate(http.HandlerFunc(authHandler.Logout)))
 
 	return mux
 }

@@ -82,6 +82,14 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
+// loginResponse retourne le jeton en clair -- comme APIKey pour Service,
+// c'est la SEULE reponse ou ce jeton apparait jamais.
+type loginResponse struct {
+	User      userResponse `json:"user"`
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+}
+
 type createServiceRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`

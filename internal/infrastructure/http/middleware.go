@@ -14,7 +14,11 @@ import (
 // (une chaine brute comme cle serait un risque de collision silencieuse).
 type contextKey int
 
-const serviceContextKey contextKey = iota
+const (
+	serviceContextKey contextKey = iota
+	userContextKey
+	sessionContextKey
+)
 
 // ServiceAuthMiddleware authentifie les requetes provenant d'un AUTRE
 // SERVICE de l'ecosysteme (pas d'un usager humain), via une cle API
@@ -42,7 +46,7 @@ func (m *ServiceAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		svc, err := m.Services.GetByAPIKeyHash(r.Context(), domain.HashAPIKey(plainKey))
+		svc, err := m.Services.GetByAPIKeyHash(r.Context(), domain.HashToken(plainKey))
 		if err != nil {
 			if errors.Is(err, application.ErrNotFound) {
 				writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "invalid API key"})
