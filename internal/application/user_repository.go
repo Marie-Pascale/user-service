@@ -23,4 +23,15 @@ type UserRepository interface {
 	List(ctx context.Context) ([]*domain.User, error)
 	Update(ctx context.Context, u *domain.User) error
 	Delete(ctx context.Context, id string) error
+
+	// AssignRole/RevokeRole et AssignPermission/RevokePermission persistent
+	// les assignations DIRECTES d'un usager (voir User.RoleIDs,
+	// User.PermissionIDs) dans les tables de jonction user_roles et
+	// user_permissions. Ecrivent directement en base, sans passer par
+	// Update -- meme patron que RoleRepository.GrantPermission et
+	// GroupRepository.AssignRole.
+	AssignRole(ctx context.Context, userID, roleID string) error
+	RevokeRole(ctx context.Context, userID, roleID string) error
+	AssignPermission(ctx context.Context, userID, permissionID string) error
+	RevokePermission(ctx context.Context, userID, permissionID string) error
 }

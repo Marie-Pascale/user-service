@@ -1,0 +1,466 @@
+openapi: 3.0.3
+info:
+  title: Gestionnaire d'usagers
+  description: >
+    API de gestion d'usagers avec authentification (locale et tierce a venir),
+    et systeme RBAC (roles, groupes, permissions) permettant aux services tiers
+    de l'ecosysteme de consulter les permissions accordees a un usager.
+
+
+    **Deux mecanismes d'authentification distincts** :
+    - Usagers humains : session opaque (`Authorization: Bearer <jeton>`), obtenue via `POST /auth/login`
+    - Services tiers : cle API (`X-API-Key: <cle>`), obtenue via `POST /services`
+
+
+    **Etat de securite actuel** : la protection des routes `/users` par permission
+    (au-dela de la simple authentification par session) est en cours d'implementation.
+    Voir le README du projet, section "Prochaines etapes", pour l'etat le plus a jour.
+  version: "0.1.0"
+
+servers:
+  - url: http://localhost:8080
+    description: Environnement de developpement local (docker compose)
+
+tags:
+  - name: usagers
+    description: Gestion des usagers (CRUD)
+  - name: authentification
+    description: Connexion, deconnexion, mot de passe
+  - name: services
+    description: Services tiers de l'ecosysteme
+  - name: permissions
+    description: Consultation des permissions par les services tiers
+  - name: sante
+    description: Verification de disponibilite du serveur
+
+paths:
+  /health:
+    get:
+      tags: [sante]
+      summary: Verifie que le serveur repond
+      security: []
+      responses:
+        "200":
+          description: Le serveur fonctionne
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /users:
+    post:
+      tags: [usagers]
+      summary: Cree un usager
+      description: >
+        Route ouverte (auto-inscription) -- ne requiert aucune authentification,
+        contrairement aux autres routes usager.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: Usager cree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Ce courriel est deja utilise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      tags: [usagers]
+      summary: Liste tous les usagers
+      responses:
+        "200":
+          description: Liste des usagers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [usagers]
+      summary: Recupere un usager par ID
+      responses:
+        "200":
+          description: L'usager demande
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [usagers]
+      summary: Met a jour le nom et le courriel d'un usager
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Usager mis a jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [usagers]
+      summary: Supprime un usager
+      responses:
+        "204":
+          description: Usager supprime
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users/{id}/password:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      tags: [authentification]
+      summary: Definit le mot de passe local d'un usager
+      description: Cree (ou remplace) la methode d'authentification locale de cet usager.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetPasswordRequest"
+      responses:
+        "201":
+          description: Methode d'authentification creee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMethod"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users/{id}/permissions:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [permissions]
+      summary: Permissions effectives d'un usager, pour le service authentifie
+      description: >
+        Reservee aux services tiers de l'ecosysteme, authentifies par cle API.
+        L'ID du service concerne vient EXCLUSIVEMENT de la cle API fournie --
+        jamais d'un parametre de la requete -- donc un service ne peut jamais
+        voir les permissions definies par un AUTRE service.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Permissions effectives (directes + via roles + via groupes)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PermissionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auth/login:
+    post:
+      tags: [authentification]
+      summary: Connexion par mot de passe
+      description: Verifie les identifiants et cree une nouvelle session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Connexion reussie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Courriel ou mot de passe invalide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /auth/logout:
+    post:
+      tags: [authentification]
+      summary: Revoque la session courante
+      description: >
+        Deconnexion immediate et definitive -- contrairement a un JWT, une
+        session opaque peut etre revoquee avant son expiration naturelle.
+      security:
+        - SessionAuth: []
+      responses:
+        "204":
+          description: Session revoquee
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me:
+    get:
+      tags: [usagers]
+      summary: Profil de l'usager actuellement connecte
+      description: L'ID de l'usager vient de la session, jamais d'un parametre d'URL.
+      security:
+        - SessionAuth: []
+      responses:
+        "200":
+          description: Le profil de l'usager connecte
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /services:
+    post:
+      tags: [services]
+      summary: Cree un service tiers de l'ecosysteme
+      description: >
+        Retourne la cle API en clair -- affichee UNE SEULE FOIS, jamais
+        recuperable par la suite. A stocker immediatement cote client.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "201":
+          description: Service cree
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateServiceResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+components:
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: Identifiant UUID de l'usager
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Requete invalide (validation echouee)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Authentification manquante ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Cle API d'un service tiers, obtenue via POST /services.
+    SessionAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: >
+        Jeton de session opaque (pas un JWT), obtenu via POST /auth/login.
+        Envoye dans l'entete "Authorization: Bearer <jeton>".
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Alice Tremblay
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [active, suspended]
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        permission_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AuthMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum: [local, google, facebook]
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+
+    PermissionsResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        permissions:
+          type: array
+          items:
+            type: string
+          example: ["orders:read", "orders:write"]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+    CreateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    UpdateUserRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+
+    SetPasswordRequest:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          format: password
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+          description: Jeton de session en clair -- n'apparait que dans cette reponse.
+        expires_at:
+          type: string
+          format: date-time
+
+    CreateServiceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    CreateServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        api_key:
+          type: string
+          description: Cle API en clair -- n'apparait que dans cette reponse.

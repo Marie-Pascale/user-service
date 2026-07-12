@@ -147,6 +147,15 @@ Les permissions effectives d'un usager = ses permissions directes + celles de se
 
 Chacun est testé avec des repositories **en mémoire** (`internal/application/fakes_test.go`) plutôt que Postgres — rapide, déterministe, aucun besoin que `make up` tourne pour ces tests-là (`make test` suffit).
 
+## Documentation API
+
+La spec complète est dans [`openapi.yaml`](./openapi.yaml) (format OpenAPI 3.0). Deux façons de la consulter :
+
+- **Intégrée** : une fois `make up` lancé, va sur [http://localhost:8080/docs](http://localhost:8080/docs) — Swagger UI, chargé depuis un CDN, pointé vers `/openapi.yaml`
+- **Externe** : colle le contenu de `openapi.yaml` dans [editor.swagger.io](https://editor.swagger.io), si tu préfères ne pas avoir l'API en marche
+
+Cette spec documente l'état **réel actuel** des routes (y compris lesquelles sont protégées et par quel mécanisme) — à tenir à jour à chaque changement de route, plutôt que de la laisser dériver.
+
 ## Endpoints HTTP
 
 | Méthode | Route | Description | Protection |

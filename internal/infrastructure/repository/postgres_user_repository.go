@@ -162,3 +162,27 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+func (r *PostgresUserRepository) AssignRole(ctx context.Context, userID, roleID string) error {
+	const query = `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	_, err := r.pool.Exec(ctx, query, userID, roleID)
+	return err
+}
+
+func (r *PostgresUserRepository) RevokeRole(ctx context.Context, userID, roleID string) error {
+	const query = `DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2`
+	_, err := r.pool.Exec(ctx, query, userID, roleID)
+	return err
+}
+
+func (r *PostgresUserRepository) AssignPermission(ctx context.Context, userID, permissionID string) error {
+	const query = `INSERT INTO user_permissions (user_id, permission_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+	_, err := r.pool.Exec(ctx, query, userID, permissionID)
+	return err
+}
+
+func (r *PostgresUserRepository) RevokePermission(ctx context.Context, userID, permissionID string) error {
+	const query = `DELETE FROM user_permissions WHERE user_id = $1 AND permission_id = $2`
+	_, err := r.pool.Exec(ctx, query, userID, permissionID)
+	return err
+}

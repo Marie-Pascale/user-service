@@ -21,6 +21,8 @@ func NewRouter(
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /health", healthHandler)
+	mux.HandleFunc("GET /docs", docsHandler)
+	mux.HandleFunc("GET /openapi.yaml", specHandler)
 
 	mux.HandleFunc("POST /users", userHandler.Create)
 	mux.HandleFunc("GET /users", userHandler.List)
