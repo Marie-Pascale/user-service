@@ -13,16 +13,22 @@ import (
 )
 
 func newTestUserHandler() (*UserHandler, *fakeUserRepo) {
-	repo := newFakeUserRepo()
-	createUser := application.NewCreateUserUseCase(repo)
-	return NewUserHandler(createUser, repo), repo
+	users := newFakeUserRepo()
+	authMethods := newFakeAuthMethodRepo()
+	hasher := fakeHasher{}
+
+	createUser := application.NewCreateUserUseCase(users)
+	registerAuthMethod := application.NewRegisterAuthMethodUseCase(users, authMethods, hasher)
+	registerUser := application.NewRegisterUserUseCase(createUser, registerAuthMethod, users)
+
+	return NewUserHandler(registerUser, users), users
 }
 
 func TestUserHandler_Create(t *testing.T) {
-	t.Run("201 pour une requete valide", func(t *testing.T) {
+	t.Run("201 pour une requete valide avec provider local", func(t *testing.T) {
 		h, _ := newTestUserHandler()
 
-		body := strings.NewReader(`{"name":"Alice","email":"alice@example.com"}`)
+		body := strings.NewReader(`{"name":"Alice","email":"alice@example.com","auth_method":{"provider":"local","password":"s3cret"}}`)
 		req := httptest.NewRequest(http.MethodPost, "/users", body)
 		rec := httptest.NewRecorder()
 
@@ -38,6 +44,20 @@ func TestUserHandler_Create(t *testing.T) {
 		}
 		if resp.Email != "alice@example.com" {
 			t.Errorf("Email = %q, attendu %q", resp.Email, "alice@example.com")
+		}
+	})
+
+	t.Run("201 quand provider est omis (defaut = local)", func(t *testing.T) {
+		h, _ := newTestUserHandler()
+
+		body := strings.NewReader(`{"name":"Bob","email":"bob@example.com","auth_method":{"password":"s3cret"}}`)
+		req := httptest.NewRequest(http.MethodPost, "/users", body)
+		rec := httptest.NewRecorder()
+
+		h.Create(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status = %d, attendu %d (provider omis devrait defaulter a local). Corps: %s", rec.Code, http.StatusCreated, rec.Body.String())
 		}
 	})
 
@@ -57,7 +77,7 @@ func TestUserHandler_Create(t *testing.T) {
 	t.Run("400 pour une validation du domaine echouee", func(t *testing.T) {
 		h, _ := newTestUserHandler()
 
-		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"","email":"alice@example.com"}`))
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"","email":"alice@example.com","auth_method":{"provider":"local","password":"s3cret"}}`))
 		rec := httptest.NewRecorder()
 
 		h.Create(rec, req)
@@ -67,11 +87,50 @@ func TestUserHandler_Create(t *testing.T) {
 		}
 	})
 
+	t.Run("400 pour un mot de passe vide", func(t *testing.T) {
+		h, _ := newTestUserHandler()
+
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Alice","email":"alice@example.com","auth_method":{"provider":"local"}}`))
+		rec := httptest.NewRecorder()
+
+		h.Create(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, attendu %d (mot de passe vide)", rec.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("400 pour un provider inconnu", func(t *testing.T) {
+		h, _ := newTestUserHandler()
+
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Alice","email":"alice@example.com","auth_method":{"provider":"mystere"}}`))
+		rec := httptest.NewRecorder()
+
+		h.Create(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, attendu %d (provider inconnu)", rec.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("501 pour un provider tiers pas encore supporte", func(t *testing.T) {
+		h, _ := newTestUserHandler()
+
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Alice","email":"alice@example.com","auth_method":{"provider":"google","provider_user_id":"google-sub-123"}}`))
+		rec := httptest.NewRecorder()
+
+		h.Create(rec, req)
+
+		if rec.Code != http.StatusNotImplemented {
+			t.Errorf("status = %d, attendu %d (google pas encore supporte)", rec.Code, http.StatusNotImplemented)
+		}
+	})
+
 	t.Run("409 pour un courriel deja utilise", func(t *testing.T) {
 		h, repo := newTestUserHandler()
 		_ = repo.Create(context.Background(), mustNewUser(t, "Alice", "alice@example.com"))
 
-		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Alice Bis","email":"alice@example.com"}`))
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"Alice Bis","email":"alice@example.com","auth_method":{"provider":"local","password":"s3cret"}}`))
 		rec := httptest.NewRecorder()
 
 		h.Create(rec, req)

@@ -4,21 +4,36 @@ import (
 	"net/http"
 
 	"gestionnaire-usagers/internal/application"
+	"gestionnaire-usagers/internal/domain"
 )
 
 // UserHandler regroupe les endpoints lies a User. Il ne connait que des
-// interfaces (le cas d'usage CreateUserUseCase, l'interface UserRepository
-// pour les lectures simples) -- jamais PostgresUserRepository directement.
+// interfaces (les cas d'usage, l'interface UserRepository pour les
+// lectures simples) -- jamais PostgresUserRepository directement.
 type UserHandler struct {
-	CreateUser *application.CreateUserUseCase
-	Users      application.UserRepository
+	RegisterUser *application.RegisterUserUseCase
+	Users        application.UserRepository
 }
 
-func NewUserHandler(createUser *application.CreateUserUseCase, users application.UserRepository) *UserHandler {
-	return &UserHandler{CreateUser: createUser, Users: users}
+func NewUserHandler(registerUser *application.RegisterUserUseCase, users application.UserRepository) *UserHandler {
+	return &UserHandler{RegisterUser: registerUser, Users: users}
 }
 
-// Create gere POST /users
+// Create gere POST /users. La methode d'authentification est fournie DES
+// LA CREATION -- plus d'usager "orphelin" sans aucun moyen de se
+// connecter (voir RegisterUserUseCase).
+//
+// auth_method.provider est optionnel et vaut "local" par defaut -- le cas
+// le plus courant n'a donc pas besoin de le preciser explicitement.
+//
+// Seul le provider "local" est accepte pour l'instant. Les fournisseurs
+// tiers (Google, Facebook) sont volontairement refuses ici : accepter un
+// "provider_user_id" venant directement du client, sans jamais verifier
+// aupres du fournisseur que ce jeton/identifiant est authentique,
+// permettrait a n'importe qui de pretendre etre n'importe quel compte
+// Google. RegisterUserUseCase.ExecuteOAuth existe deja et fonctionne --
+// il attend seulement un vrai flot de verification OAuth en amont
+// (echange de code, validation de jeton signe) avant d'etre branche ici.
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -26,13 +41,30 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.CreateUser.Execute(r.Context(), req.Name, req.Email)
-	if err != nil {
-		writeError(w, err)
-		return
+	provider := domain.Provider(req.AuthMethod.Provider)
+	if provider == "" {
+		provider = domain.ProviderLocal
 	}
 
-	writeJSON(w, http.StatusCreated, newUserResponse(u))
+	switch provider {
+	case domain.ProviderLocal:
+		u, err := h.RegisterUser.ExecuteLocal(r.Context(), req.Name, req.Email, req.AuthMethod.Password)
+		if err != nil {
+			writeError(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, newUserResponse(u))
+
+	case domain.ProviderGoogle, domain.ProviderFacebook:
+		writeJSON(w, http.StatusNotImplemented, errorResponse{
+			Error: "l'inscription via ce fournisseur n'est pas encore disponible",
+		})
+
+	default:
+		writeJSON(w, http.StatusBadRequest, errorResponse{
+			Error: "auth_method.provider doit etre \"local\" (seul fournisseur supporte pour l'instant)",
+		})
+	}
 }
 
 // Get gere GET /users/{id}

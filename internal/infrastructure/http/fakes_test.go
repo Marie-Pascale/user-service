@@ -118,6 +118,81 @@ func (f *fakeUserRepo) RevokePermission(ctx context.Context, userID, permissionI
 
 var _ application.UserRepository = (*fakeUserRepo)(nil)
 
+// fakeAuthMethodRepo est une implementation en memoire de
+// application.AuthMethodRepository.
+type fakeAuthMethodRepo struct {
+	byID   map[string]*domain.AuthMethod
+	byUser map[string][]*domain.AuthMethod
+}
+
+func newFakeAuthMethodRepo() *fakeAuthMethodRepo {
+	return &fakeAuthMethodRepo{byID: map[string]*domain.AuthMethod{}, byUser: map[string][]*domain.AuthMethod{}}
+}
+
+func (f *fakeAuthMethodRepo) Create(ctx context.Context, am *domain.AuthMethod) error {
+	f.byID[am.ID] = am
+	f.byUser[am.UserID] = append(f.byUser[am.UserID], am)
+	return nil
+}
+
+func (f *fakeAuthMethodRepo) GetByID(ctx context.Context, id string) (*domain.AuthMethod, error) {
+	am, ok := f.byID[id]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return am, nil
+}
+
+func (f *fakeAuthMethodRepo) ListByUserID(ctx context.Context, userID string) ([]*domain.AuthMethod, error) {
+	return f.byUser[userID], nil
+}
+
+func (f *fakeAuthMethodRepo) GetByProviderUserID(ctx context.Context, provider domain.Provider, providerUserID string) (*domain.AuthMethod, error) {
+	for _, am := range f.byID {
+		if am.Provider == provider && am.ProviderUserID == providerUserID {
+			return am, nil
+		}
+	}
+	return nil, application.ErrNotFound
+}
+
+func (f *fakeAuthMethodRepo) MarkUsed(ctx context.Context, id string) error {
+	if _, ok := f.byID[id]; !ok {
+		return application.ErrNotFound
+	}
+	return nil
+}
+
+func (f *fakeAuthMethodRepo) Delete(ctx context.Context, id string) error {
+	am, ok := f.byID[id]
+	if !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	list := f.byUser[am.UserID]
+	for i, x := range list {
+		if x.ID == id {
+			f.byUser[am.UserID] = append(list[:i], list[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
+var _ application.AuthMethodRepository = (*fakeAuthMethodRepo)(nil)
+
+// fakeHasher est un domain.PasswordHasher minimal pour les tests --
+// duplique volontairement (voir la note en haut de ce fichier).
+type fakeHasher struct{}
+
+func (fakeHasher) Hash(password string) (string, error) {
+	return "hashed:" + password, nil
+}
+
+func (fakeHasher) Verify(password, hash string) bool {
+	return "hashed:"+password == hash
+}
+
 // fakeServiceRepo est une implementation en memoire de
 // application.ServiceRepository, pour tester le middleware sans base
 // de donnees.

@@ -63,9 +63,24 @@ type errorResponse struct {
 
 // --- Requetes --------------------------------------------------------
 
+// createUserRequest exige desormais une methode d'authentification des la
+// creation -- plutot que de creer un usager "orphelin" (sans aucun moyen
+// de se connecter) qu'il faudrait completer via un second appel.
 type createUserRequest struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name       string            `json:"name"`
+	Email      string            `json:"email"`
+	AuthMethod authMethodRequest `json:"auth_method"`
+}
+
+// authMethodRequest est discriminee par Provider : "local" utilise
+// Password, les fournisseurs tiers utiliseraient ProviderUserID -- mais
+// voir UserHandler.Create pour pourquoi ces derniers sont refuses pour
+// l'instant (aucune verification reelle du jeton tiers n'existe encore).
+// Provider est optionnel et vaut "local" par defaut si omis.
+type authMethodRequest struct {
+	Provider       string `json:"provider,omitempty"`
+	Password       string `json:"password,omitempty"`
+	ProviderUserID string `json:"provider_user_id,omitempty"`
 }
 
 type updateUserRequest struct {

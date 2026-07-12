@@ -49,13 +49,14 @@ func main() {
 	// domain.PasswordHasher...), jamais les types concrets ci-dessus.
 	createUser := application.NewCreateUserUseCase(users)
 	registerAuthMethod := application.NewRegisterAuthMethodUseCase(users, authMethods, hasher)
+	registerUser := application.NewRegisterUserUseCase(createUser, registerAuthMethod, users)
 	authenticate := application.NewAuthenticateUserUseCase(users, authMethods, hasher)
 	authorization := application.NewAuthorizationService(users, roles, groups, permissions)
 	createSession := application.NewCreateSessionUseCase(sessions, sessionTTL)
 	logout := application.NewLogoutUseCase(sessions)
 
 	// --- HTTP --------------------------------------------------------------
-	userHandler := httpapi.NewUserHandler(createUser, users)
+	userHandler := httpapi.NewUserHandler(registerUser, users)
 	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate, createSession, logout)
 	serviceHandler := httpapi.NewServiceHandler(services)
 	permissionsHandler := httpapi.NewPermissionsHandler(authorization)

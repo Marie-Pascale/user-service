@@ -140,9 +140,11 @@ Les permissions effectives d'un usager = ses permissions directes + celles de se
 
 | Cas d'usage | Rôle |
 |---|---|
-| `CreateUserUseCase` | Crée un usager, rejette les courriels déjà utilisés |
-| `RegisterAuthMethodUseCase` | Ajoute une méthode d'authentification (locale ou OAuth) à un usager existant |
+| `CreateUserUseCase` | Crée un usager (sans authentification), rejette les courriels déjà utilisés |
+| `RegisterAuthMethodUseCase` | Ajoute une méthode d'authentification (locale ou OAuth) à un usager **existant** |
+| `RegisterUserUseCase` | Compose les deux ci-dessus : crée un usager **et** sa première méthode d'authentification, en une opération — avec suppression de compensation si la deuxième étape échoue |
 | `AuthenticateUserUseCase` | Connexion par mot de passe local ; retourne toujours la même erreur en cas d'échec (anti-énumération) |
+| `CreateSessionUseCase` / `LogoutUseCase` | Création et révocation de session, séparées de l'authentification elle-même |
 | `AuthorizationService` | Résout les permissions effectives d'un usager pour un service : directes + rôles directs + rôles hérités des groupes |
 
 Chacun est testé avec des repositories **en mémoire** (`internal/application/fakes_test.go`) plutôt que Postgres — rapide, déterministe, aucun besoin que `make up` tourne pour ces tests-là (`make test` suffit).
@@ -163,12 +165,12 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` | `/health` | Vérifie que le serveur répond | Aucune |
 | `GET` | `/docs` | Documentation Swagger UI | Aucune |
 | `GET` | `/openapi.yaml` | Spec OpenAPI brute | Aucune |
-| `POST` | `/users` | Crée un usager (`{"name", "email"}`) | Aucune (auto-inscription) |
+| `POST` | `/users` | Crée un usager **avec** sa méthode d'authentification (`{"name", "email", "auth_method": {"password"}}` — `provider` optionnel, défaut `local`) | Aucune (auto-inscription) |
 | `GET` | `/users` | Liste tous les usagers | Session + `users:read:any` |
 | `GET` | `/users/{id}` | Récupère un usager | Session — soi-même OU `users:read:any` |
 | `PUT` | `/users/{id}` | Met à jour nom/courriel | Session — soi-même OU `users:write:any` |
 | `DELETE` | `/users/{id}` | Supprime un usager | Session — soi-même OU `users:delete:any` |
-| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) | Session — soi-même OU `users:write:any` |
+| `POST` | `/users/{id}/password` | Ajoute/remplace le mot de passe local d'un usager **existant** (`{"password"}`) | Session — soi-même OU `users:write:any` |
 | `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager **et un jeton de session** | Aucune |
 | `POST` | `/auth/logout` | Révoque la session courante | **Session** (`Authorization: Bearer`) |
 | `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
@@ -194,9 +196,9 @@ Requête SQL directe contre la base — volontairement, il n'existe **aucune rou
 
 **Exemple d'utilisation de bout en bout** :
 ```bash
-# 1. Creer un usager et lui definir un mot de passe
-curl -X POST localhost:8080/users -d '{"name":"Alice","email":"alice@example.com"}'
-curl -X POST localhost:8080/users/<user-id>/password -d '{"password":"s3cret"}'
+# 1. Creer un usager avec son mot de passe, en une seule requete
+# (provider omis -- "local" est la valeur par defaut)
+curl -X POST localhost:8080/users -d '{"name":"Alice","email":"alice@example.com","auth_method":{"password":"s3cret"}}'
 
 # 2. L'accorder comme admin (une seule fois, en local)
 make grant-admin email=alice@example.com
@@ -221,6 +223,7 @@ curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 
 ## Prochaines étapes
 
+- Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
 - Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
 - Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`), pour gérer le RBAC sans passer par SQL direct
 - Interface (CLI ou route admin protégée) pour créer des permissions/rôles personnalisés au-delà du rôle `admin` seedé par défaut

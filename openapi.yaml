@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.2.0"
+  version: "0.3.0"
 
 servers:
   - url: http://localhost:8080
@@ -57,10 +57,13 @@ paths:
   /users:
     post:
       tags: [usagers]
-      summary: Cree un usager
+      summary: Cree un usager, avec sa premiere methode d'authentification
       description: >
         Route ouverte (auto-inscription) -- ne requiert aucune authentification,
-        contrairement aux autres routes usager.
+        contrairement aux autres routes usager. Seul `auth_method.provider = "local"`
+        est accepte pour l'instant : les fournisseurs tiers (Google, Facebook) ne
+        sont pas encore verifies cote serveur, et sont donc refuses (501) plutot
+        que d'accepter un identifiant tiers non verifie.
       security: []
       requestBody:
         required: true
@@ -79,6 +82,12 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "409":
           description: Ce courriel est deja utilise
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "501":
+          description: Provider tiers reconnu mais pas encore supporte (google, facebook)
           content:
             application/json:
               schema:
@@ -452,13 +461,39 @@ components:
 
     CreateUserRequest:
       type: object
-      required: [name, email]
+      required: [name, email, auth_method]
       properties:
         name:
           type: string
         email:
           type: string
           format: email
+        auth_method:
+          $ref: "#/components/schemas/AuthMethodRequest"
+
+    AuthMethodRequest:
+      type: object
+      description: >
+        Discriminee par `provider`, qui est OPTIONNEL et vaut "local" par
+        defaut si omis -- le cas le plus courant n'a donc pas besoin de le
+        preciser. Pour "local", `password` est requis, `provider_user_id`
+        ne s'applique pas. Pour "google"/"facebook" (pas encore actives
+        cote serveur, voir POST /users), `provider_user_id` serait requis
+        a la place de `password`.
+      properties:
+        provider:
+          type: string
+          enum: [local, google, facebook]
+          default: local
+        password:
+          type: string
+          format: password
+          description: Requis si provider = "local" (ou omis). Ignore pour les autres providers.
+        provider_user_id:
+          type: string
+          description: >
+            Requis si provider = "google" ou "facebook" (non actif pour
+            l'instant). Optionnel/absent pour "local".
 
     UpdateUserRequest:
       type: object
