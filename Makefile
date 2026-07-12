@@ -1,4 +1,4 @@
-.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy
+.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy grant-admin
 
 .DEFAULT_GOAL := help
 
@@ -27,6 +27,10 @@ shell: ensure-up ## Ouvre un shell dans le conteneur api
 
 mod-tidy: ensure-up ## Mets a jour les dependances du projet (go mod tidy), sans besoin de Go local
 	$(EXEC) go mod tidy
+
+grant-admin: ensure-up ## Accorde le role admin a un usager existant : make grant-admin email=alice@example.com
+	docker compose exec db psql -U usagers -d usagers_db -c \
+		"INSERT INTO user_roles (user_id, role_id) SELECT id, '00000000-0000-0000-0000-000000000002' FROM users WHERE email = '$(email)' ON CONFLICT DO NOTHING;"
 
 ## Tests unitaires (executes dans le conteneur) --------------------------
 

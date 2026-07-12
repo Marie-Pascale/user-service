@@ -74,6 +74,52 @@ func (f *fakeUserRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (f *fakeUserRepo) AssignRole(ctx context.Context, userID, roleID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.AssignRole(roleID)
+	return nil
+}
+
+func (f *fakeUserRepo) RevokeRole(ctx context.Context, userID, roleID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	for i, id := range u.RoleIDs {
+		if id == roleID {
+			u.RoleIDs = append(u.RoleIDs[:i], u.RoleIDs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
+func (f *fakeUserRepo) AssignPermission(ctx context.Context, userID, permissionID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.AssignPermission(permissionID)
+	return nil
+}
+
+func (f *fakeUserRepo) RevokePermission(ctx context.Context, userID, permissionID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	for i, id := range u.PermissionIDs {
+		if id == permissionID {
+			u.PermissionIDs = append(u.PermissionIDs[:i], u.PermissionIDs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
 var _ UserRepository = (*fakeUserRepo)(nil)
 
 // --- fakeAuthMethodRepo ----------------------------------------------

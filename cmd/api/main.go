@@ -61,8 +61,9 @@ func main() {
 	permissionsHandler := httpapi.NewPermissionsHandler(authorization)
 	serviceAuth := httpapi.NewServiceAuthMiddleware(services)
 	userAuth := httpapi.NewUserAuthMiddleware(sessions, users)
+	authz := httpapi.NewAuthorizationMiddleware(authorization)
 
-	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth, userAuth)
+	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth, userAuth, authz)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

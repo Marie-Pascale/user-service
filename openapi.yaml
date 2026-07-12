@@ -12,10 +12,13 @@ info:
     - Services tiers : cle API (`X-API-Key: <cle>`), obtenue via `POST /services`
 
 
-    **Etat de securite actuel** : la protection des routes `/users` par permission
-    (au-dela de la simple authentification par session) est en cours d'implementation.
-    Voir le README du projet, section "Prochaines etapes", pour l'etat le plus a jour.
-  version: "0.1.0"
+    **Autorisation** : gestionnaire-usagers se traite lui-meme comme un service
+    du systeme RBAC (voir `SelfServiceID` dans le code). Les routes usager
+    protegees suivent la regle "self-ou-permission" : un usager peut toujours
+    agir sur son propre compte ; agir sur celui d'un autre necessite la
+    permission correspondante (typiquement via le role "admin", assignable
+    avec `make grant-admin`).
+  version: "0.2.0"
 
 servers:
   - url: http://localhost:8080
@@ -84,6 +87,9 @@ paths:
     get:
       tags: [usagers]
       summary: Liste tous les usagers
+      description: Requiert la permission `users:read:any` (typiquement via le role admin).
+      security:
+        - SessionAuth: []
       responses:
         "200":
           description: Liste des usagers
@@ -93,6 +99,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /users/{id}:
     parameters:
@@ -100,6 +110,11 @@ paths:
     get:
       tags: [usagers]
       summary: Recupere un usager par ID
+      description: >
+        Autorise si l'ID correspond a l'usager connecte (son propre profil),
+        OU si l'usager connecte possede la permission `users:read:any`.
+      security:
+        - SessionAuth: []
       responses:
         "200":
           description: L'usager demande
@@ -107,12 +122,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
     put:
       tags: [usagers]
       summary: Met a jour le nom et le courriel d'un usager
+      description: >
+        Autorise si l'ID correspond a l'usager connecte, OU si l'usager
+        connecte possede la permission `users:write:any`.
+      security:
+        - SessionAuth: []
       requestBody:
         required: true
         content:
@@ -128,15 +152,28 @@ paths:
                 $ref: "#/components/schemas/User"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
     delete:
       tags: [usagers]
       summary: Supprime un usager
+      description: >
+        Autorise si l'ID correspond a l'usager connecte, OU si l'usager
+        connecte possede la permission `users:delete:any`.
+      security:
+        - SessionAuth: []
       responses:
         "204":
           description: Usager supprime
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -146,7 +183,12 @@ paths:
     post:
       tags: [authentification]
       summary: Definit le mot de passe local d'un usager
-      description: Cree (ou remplace) la methode d'authentification locale de cet usager.
+      description: >
+        Cree (ou remplace) la methode d'authentification locale de cet usager.
+        Autorise si l'ID correspond a l'usager connecte, OU si l'usager
+        connecte possede la permission `users:write:any`.
+      security:
+        - SessionAuth: []
       requestBody:
         required: true
         content:
@@ -162,6 +204,10 @@ paths:
                 $ref: "#/components/schemas/AuthMethod"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -255,8 +301,11 @@ paths:
       tags: [services]
       summary: Cree un service tiers de l'ecosysteme
       description: >
+        Requiert la permission `services:create` (typiquement via le role admin).
         Retourne la cle API en clair -- affichee UNE SEULE FOIS, jamais
         recuperable par la suite. A stocker immediatement cote client.
+      security:
+        - SessionAuth: []
       requestBody:
         required: true
         content:
@@ -272,6 +321,10 @@ paths:
                 $ref: "#/components/schemas/CreateServiceResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
 components:
   parameters:
@@ -299,6 +352,12 @@ components:
             $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Authentification manquante ou invalide
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Authentifie, mais permissions insuffisantes
       content:
         application/json:
           schema:

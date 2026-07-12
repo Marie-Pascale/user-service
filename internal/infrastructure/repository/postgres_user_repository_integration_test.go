@@ -136,3 +136,51 @@ func TestPostgresUserRepository_Delete_NotFound(t *testing.T) {
 		t.Errorf("erreur = %v, attendu %v", err, application.ErrNotFound)
 	}
 }
+
+func TestPostgresUserRepository_AssignAndRevokeRole(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+
+	userRepo := NewPostgresUserRepository(pool)
+	roleRepo := NewPostgresRoleRepository(pool)
+
+	u, _ := domain.NewUser(domain.NewID(), "Role Test", "assign-role-test@example.com")
+	if err := userRepo.Create(ctx, u); err != nil {
+		t.Fatalf("Create usager: %v", err)
+	}
+	t.Cleanup(func() { _ = userRepo.Delete(ctx, u.ID) })
+
+	role, _ := domain.NewRole(domain.NewID(), "role-assign-test", "")
+	if err := roleRepo.Create(ctx, role); err != nil {
+		t.Fatalf("Create role: %v", err)
+	}
+	t.Cleanup(func() { _ = roleRepo.Delete(ctx, role.ID) })
+
+	if err := userRepo.AssignRole(ctx, u.ID, role.ID); err != nil {
+		t.Fatalf("AssignRole: %v", err)
+	}
+
+	got, err := userRepo.GetByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if len(got.RoleIDs) != 1 || got.RoleIDs[0] != role.ID {
+		t.Errorf("RoleIDs = %v, attendu [%q]", got.RoleIDs, role.ID)
+	}
+
+	if err := userRepo.RevokeRole(ctx, u.ID, role.ID); err != nil {
+		t.Fatalf("RevokeRole: %v", err)
+	}
+
+	got, err = userRepo.GetByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetByID apres revoke: %v", err)
+	}
+	if len(got.RoleIDs) != 0 {
+		t.Errorf("RoleIDs = %v, attendu vide apres RevokeRole", got.RoleIDs)
+	}
+}

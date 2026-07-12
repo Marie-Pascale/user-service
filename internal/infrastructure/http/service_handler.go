@@ -8,14 +8,9 @@ import (
 )
 
 // ServiceHandler permet de creer les services tiers de l'ecosysteme.
-//
-// NOTE DE SECURITE : cette route (POST /services) n'est PAS encore
-// protegee -- n'importe qui peut actuellement creer un service et obtenir
-// une cle API. C'est un gap connu et deliberement laisse ouvert pour
-// l'instant : il n'existe pas encore d'authentification usager (voir
-// README, section Prochaines etapes). Une fois le mecanisme de session
-// usager en place, cette route devra etre restreinte aux administrateurs
-// uniquement.
+// Protegee par authz.RequirePermission(application.PermServicesCreate)
+// (voir router.go) -- seul un usager avec cette permission (typiquement
+// via le role "admin") peut creer un service et obtenir sa cle API.
 type ServiceHandler struct {
 	Services application.ServiceRepository
 }

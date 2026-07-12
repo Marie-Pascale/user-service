@@ -70,6 +70,52 @@ func (f *fakeUserRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func (f *fakeUserRepo) AssignRole(ctx context.Context, userID, roleID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	u.AssignRole(roleID)
+	return nil
+}
+
+func (f *fakeUserRepo) RevokeRole(ctx context.Context, userID, roleID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	for i, id := range u.RoleIDs {
+		if id == roleID {
+			u.RoleIDs = append(u.RoleIDs[:i], u.RoleIDs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
+func (f *fakeUserRepo) AssignPermission(ctx context.Context, userID, permissionID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	u.AssignPermission(permissionID)
+	return nil
+}
+
+func (f *fakeUserRepo) RevokePermission(ctx context.Context, userID, permissionID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	for i, id := range u.PermissionIDs {
+		if id == permissionID {
+			u.PermissionIDs = append(u.PermissionIDs[:i], u.PermissionIDs[i+1:]...)
+			break
+		}
+	}
+	return nil
+}
+
 var _ application.UserRepository = (*fakeUserRepo)(nil)
 
 // fakeServiceRepo est une implementation en memoire de
@@ -193,3 +239,193 @@ func (f *fakeSessionRepo) DeleteAllForUser(ctx context.Context, userID string) e
 }
 
 var _ application.SessionRepository = (*fakeSessionRepo)(nil)
+
+// fakeRoleRepo est une implementation en memoire de application.RoleRepository.
+type fakeRoleRepo struct {
+	byID map[string]*domain.Role
+}
+
+func newFakeRoleRepo() *fakeRoleRepo {
+	return &fakeRoleRepo{byID: map[string]*domain.Role{}}
+}
+
+func (f *fakeRoleRepo) Create(ctx context.Context, r *domain.Role) error {
+	f.byID[r.ID] = r
+	return nil
+}
+
+func (f *fakeRoleRepo) GetByID(ctx context.Context, id string) (*domain.Role, error) {
+	r, ok := f.byID[id]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return r, nil
+}
+
+func (f *fakeRoleRepo) List(ctx context.Context) ([]*domain.Role, error) {
+	out := make([]*domain.Role, 0, len(f.byID))
+	for _, r := range f.byID {
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (f *fakeRoleRepo) GrantPermission(ctx context.Context, roleID, permissionID string) error {
+	r, ok := f.byID[roleID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	r.GrantPermission(permissionID)
+	return nil
+}
+
+func (f *fakeRoleRepo) RevokePermission(ctx context.Context, roleID, permissionID string) error {
+	r, ok := f.byID[roleID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	r.RevokePermission(permissionID)
+	return nil
+}
+
+func (f *fakeRoleRepo) Delete(ctx context.Context, id string) error {
+	if _, ok := f.byID[id]; !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
+
+var _ application.RoleRepository = (*fakeRoleRepo)(nil)
+
+// fakeGroupRepo est une implementation en memoire de application.GroupRepository.
+// Minimal : ListByMemberUserID retourne toujours une liste vide, suffisant
+// pour tester l'autorisation sans impliquer les groupes.
+type fakeGroupRepo struct {
+	byID map[string]*domain.Group
+}
+
+func newFakeGroupRepo() *fakeGroupRepo {
+	return &fakeGroupRepo{byID: map[string]*domain.Group{}}
+}
+
+func (f *fakeGroupRepo) Create(ctx context.Context, g *domain.Group) error {
+	f.byID[g.ID] = g
+	return nil
+}
+
+func (f *fakeGroupRepo) GetByID(ctx context.Context, id string) (*domain.Group, error) {
+	g, ok := f.byID[id]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return g, nil
+}
+
+func (f *fakeGroupRepo) List(ctx context.Context) ([]*domain.Group, error) {
+	out := make([]*domain.Group, 0, len(f.byID))
+	for _, g := range f.byID {
+		out = append(out, g)
+	}
+	return out, nil
+}
+
+func (f *fakeGroupRepo) ListByMemberUserID(ctx context.Context, userID string) ([]*domain.Group, error) {
+	out := []*domain.Group{}
+	for _, g := range f.byID {
+		if g.HasMember(userID) {
+			out = append(out, g)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeGroupRepo) AddMember(ctx context.Context, groupID, userID string) error {
+	g, ok := f.byID[groupID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	g.AddMember(userID)
+	return nil
+}
+
+func (f *fakeGroupRepo) RemoveMember(ctx context.Context, groupID, userID string) error {
+	g, ok := f.byID[groupID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	g.RemoveMember(userID)
+	return nil
+}
+
+func (f *fakeGroupRepo) AssignRole(ctx context.Context, groupID, roleID string) error {
+	g, ok := f.byID[groupID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	g.AssignRole(roleID)
+	return nil
+}
+
+func (f *fakeGroupRepo) Delete(ctx context.Context, id string) error {
+	if _, ok := f.byID[id]; !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
+
+var _ application.GroupRepository = (*fakeGroupRepo)(nil)
+
+// fakePermissionRepo est une implementation en memoire de
+// application.PermissionRepository.
+type fakePermissionRepo struct {
+	byID map[string]*domain.Permission
+}
+
+func newFakePermissionRepo() *fakePermissionRepo {
+	return &fakePermissionRepo{byID: map[string]*domain.Permission{}}
+}
+
+func (f *fakePermissionRepo) Create(ctx context.Context, p *domain.Permission) error {
+	f.byID[p.ID] = p
+	return nil
+}
+
+func (f *fakePermissionRepo) GetByID(ctx context.Context, id string) (*domain.Permission, error) {
+	p, ok := f.byID[id]
+	if !ok {
+		return nil, application.ErrNotFound
+	}
+	return p, nil
+}
+
+func (f *fakePermissionRepo) ListByServiceID(ctx context.Context, serviceID string) ([]*domain.Permission, error) {
+	out := []*domain.Permission{}
+	for _, p := range f.byID {
+		if p.ServiceID == serviceID {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakePermissionRepo) ListByIDs(ctx context.Context, ids []string) ([]*domain.Permission, error) {
+	out := []*domain.Permission{}
+	for _, id := range ids {
+		if p, ok := f.byID[id]; ok {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func (f *fakePermissionRepo) Delete(ctx context.Context, id string) error {
+	if _, ok := f.byID[id]; !ok {
+		return application.ErrNotFound
+	}
+	delete(f.byID, id)
+	return nil
+}
+
+var _ application.PermissionRepository = (*fakePermissionRepo)(nil)

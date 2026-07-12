@@ -161,23 +161,36 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | Méthode | Route | Description | Protection |
 |---|---|---|---|
 | `GET` | `/health` | Vérifie que le serveur répond | Aucune |
-| `POST` | `/users` | Crée un usager (`{"name", "email"}`) | Aucune |
-| `GET` | `/users` | Liste tous les usagers | Aucune |
-| `GET` | `/users/{id}` | Récupère un usager | Aucune |
-| `PUT` | `/users/{id}` | Met à jour nom/courriel | Aucune |
-| `DELETE` | `/users/{id}` | Supprime un usager | Aucune |
-| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) | Aucune |
+| `GET` | `/docs` | Documentation Swagger UI | Aucune |
+| `GET` | `/openapi.yaml` | Spec OpenAPI brute | Aucune |
+| `POST` | `/users` | Crée un usager (`{"name", "email"}`) | Aucune (auto-inscription) |
+| `GET` | `/users` | Liste tous les usagers | Session + `users:read:any` |
+| `GET` | `/users/{id}` | Récupère un usager | Session — soi-même OU `users:read:any` |
+| `PUT` | `/users/{id}` | Met à jour nom/courriel | Session — soi-même OU `users:write:any` |
+| `DELETE` | `/users/{id}` | Supprime un usager | Session — soi-même OU `users:delete:any` |
+| `POST` | `/users/{id}/password` | Définit le mot de passe local d'un usager (`{"password"}`) | Session — soi-même OU `users:write:any` |
 | `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager **et un jeton de session** | Aucune |
 | `POST` | `/auth/logout` | Révoque la session courante | **Session** (`Authorization: Bearer`) |
 | `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
-| `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Aucune ⚠️ (voir note ci-dessous) |
+| `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Session + `services:create` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 
-**⚠️ Sécurité connue et volontairement incomplète** : `POST /services` n'est pas encore protégée — n'importe qui peut créer un service et obtenir une clé API. Cette route devra être restreinte aux administrateurs une fois qu'un rôle "admin" sera vérifié dans `UserAuthMiddleware` (ou un middleware d'autorisation séparé, branché sur `AuthorizationService`).
+**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante).
 
-**Deux mécanismes d'authentification distincts, deux en-têtes distincts** — volontaire, pour ne jamais les confondre :
+**Trois mécanismes distincts, jamais confondus** :
 - Services tiers → `X-API-Key: <clé>` (clé permanente jusqu'à rotation)
 - Usagers → `Authorization: Bearer <jeton>` (jeton de session, expire après 24h ou après `/auth/logout`)
+- Permissions → résolues via `AuthorizationService`, le **même** mécanisme protège les routes de ce service ET répond aux services tiers qui consultent les permissions d'un usager
+
+## Amorcer le premier administrateur
+
+Le rôle `admin` (avec toutes les permissions internes) est créé automatiquement par la migration `000013_seed_self_service`. Mais **aucun usager n'a ce rôle par défaut** — il faut l'accorder manuellement au premier compte :
+
+```bash
+make grant-admin email=alice@example.com
+```
+
+Requête SQL directe contre la base — volontairement, il n'existe **aucune route HTTP** pour accorder le rôle admin : ça éviterait sinon le problème classique de l'œuf et la poule au tout premier déploiement (qui protégerait la route qui donne les droits d'admin ?).
 
 **Exemple d'utilisation de bout en bout** :
 ```bash
@@ -185,21 +198,21 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 curl -X POST localhost:8080/users -d '{"name":"Alice","email":"alice@example.com"}'
 curl -X POST localhost:8080/users/<user-id>/password -d '{"password":"s3cret"}'
 
-# 2. Se connecter -- recupere un jeton de session
+# 2. L'accorder comme admin (une seule fois, en local)
+make grant-admin email=alice@example.com
+
+# 3. Se connecter -- recupere un jeton de session
 curl -X POST localhost:8080/auth/login -d '{"email":"alice@example.com","password":"s3cret"}'
 # -> {"user": {...}, "token": "a1b2c3...", "expires_at": "..."}
 
-# 3. Utiliser ce jeton pour consulter son propre profil
-curl localhost:8080/me -H "Authorization: Bearer a1b2c3..."
+# 4. En tant qu'admin, lister TOUS les usagers (impossible sans le role)
+curl localhost:8080/users -H "Authorization: Bearer a1b2c3..."
 
-# 4. Se deconnecter -- revoque la session immediatement (contrairement a un JWT)
-curl -X POST localhost:8080/auth/logout -H "Authorization: Bearer a1b2c3..."
+# 5. Creer un service tiers (reserve aux admins)
+curl -X POST localhost:8080/services -H "Authorization: Bearer a1b2c3..." -d '{"name":"orders-service","description":""}'
+# -> {"id":"...", "api_key":"a1b2c3..."}
 
 # --- Cote services tiers (mecanisme separe, cle API) ---
-
-# 5. Creer un service, recuperer sa cle API (affichee UNE SEULE FOIS)
-curl -X POST localhost:8080/services -d '{"name":"orders-service","description":""}'
-# -> {"id":"...", "api_key":"a1b2c3..."}
 
 # 6. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
@@ -208,7 +221,6 @@ curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 
 ## Prochaines étapes
 
-- Middleware/logique d'autorisation par permission (au-dela de la simple authentification) — brancher `AuthorizationService.HasPermission` sur des routes specifiques, ex: proteger `POST /services` derriere une permission "admin"
-- Purge periodique des sessions expirees (actuellement, une session expiree n'est supprimee qu'au moment ou elle est *utilisee* — voir `UserAuthMiddleware`)
-- Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`)
-- Migration des routes existantes (`GET/PUT/DELETE /users/{id}`) vers une protection par session, avec la règle "un usager ne voit que lui-même, sauf un admin" évoquée en concevant le domaine
+- Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
+- Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`), pour gérer le RBAC sans passer par SQL direct
+- Interface (CLI ou route admin protégée) pour créer des permissions/rôles personnalisés au-delà du rôle `admin` seedé par défaut
