@@ -97,7 +97,7 @@ make bench
 
 **Tests de charge** (performance de l'API sous requêtes concurrentes)
 
-Voir [`loadtest/README.md`](./loadtest/README.md). Contrairement aux tests unitaires, `vegeta` doit être installé sur ta machine — il attaque l'API depuis l'extérieur, via le port publié (`localhost:8080`), pour simuler du vrai trafic réseau.
+Voir [`loadtest/README.md`](./loadtest/README.md). Tourne dans un conteneur Docker dédié (version de `vegeta` épinglée) — comme pour les tests unitaires, aucune installation locale requise.
 ```bash
 make load-test-health
 ```

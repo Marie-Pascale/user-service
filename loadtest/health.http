@@ -1,1 +1,1 @@
-GET http://localhost:8080/health
+GET http://api:8080/health

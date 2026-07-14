@@ -55,8 +55,9 @@ bench: ensure-up ## Lance les benchmarks Go (performance au niveau du code)
 
 ## Tests de charge (attaque depuis l'hote, via le port publie) -----------
 
-load-test-health: ensure-up ## Test de charge sur GET /health (50 req/s pendant 30s)
-	vegeta attack -targets=loadtest/health.http -rate=50 -duration=30s | vegeta report
+load-test-health: ensure-up ## Test de charge sur GET /health, dans un conteneur ephemere (50 req/s, 30s)
+	docker compose run --rm -T loadtest attack -targets=/loadtest/health.http -rate=50 -duration=30s -output=/loadtest/results.bin
+	docker compose run --rm -T loadtest report /loadtest/results.bin
 
 ## Migrations (executees dans le conteneur) -------------------------------
 

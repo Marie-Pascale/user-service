@@ -40,6 +40,19 @@ services:
     networks:
       - usagers-net
 
+  loadtest:
+    build:
+      context: ./loadtest
+    container_name: usagers-loadtest
+    # "profiles" exclut ce service de "docker compose up" (et donc de
+    # "make up") -- il ne demarre que sur demande explicite via
+    # "docker compose run", jamais comme service de fond.
+    profiles: ["tools"]
+    volumes:
+      - ./loadtest:/loadtest
+    networks:
+      - usagers-net
+
 volumes:
   pg_data:
 

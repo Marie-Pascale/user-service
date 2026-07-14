@@ -5,6 +5,11 @@ coverage.html
 # Dossier de build temporaire d'air (hot-reload, voir .air.toml)
 tmp/
 
+# Resultats de tests de charge generes localement (voir loadtest/README.md)
+loadtest/results.bin
+loadtest/*.json
+loadtest/*.html
+
 # Binaires compiles, au cas ou
 *.exe
 *.dll
