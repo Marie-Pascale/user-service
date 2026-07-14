@@ -62,8 +62,13 @@ func NewRouter(
 	mux.Handle("POST /users/{id}/password",
 		userAuth.Authenticate(authz.RequireSelfOrPermission(application.PermUsersWriteAny)(http.HandlerFunc(authHandler.SetPassword))))
 
-	// Services tiers -- creation reservee aux admins.
+	// Services tiers -- creation reservee a "services:create", le reste
+	// (consultation, suppression, rotation de cle) a "services:manage".
 	mux.Handle("POST /services", protected(application.PermServicesCreate, serviceHandler.Create))
+	mux.Handle("GET /services", protected(application.PermServicesManage, serviceHandler.List))
+	mux.Handle("GET /services/{id}", protected(application.PermServicesManage, serviceHandler.Get))
+	mux.Handle("DELETE /services/{id}", protected(application.PermServicesManage, serviceHandler.Delete))
+	mux.Handle("POST /services/{id}/rotate-key", protected(application.PermServicesManage, serviceHandler.RotateAPIKey))
 
 	// Permissions -- gestion RBAC, aucune notion de "soi-meme".
 	mux.Handle("POST /permissions", protected(application.PermPermissionsManage, permissionHandler.Create))

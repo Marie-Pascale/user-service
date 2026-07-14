@@ -7,10 +7,11 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// ServiceHandler permet de creer les services tiers de l'ecosysteme.
-// Protegee par authz.RequirePermission(application.PermServicesCreate)
-// (voir router.go) -- seul un usager avec cette permission (typiquement
-// via le role "admin") peut creer un service et obtenir sa cle API.
+// ServiceHandler gere les endpoints lies a Service. La creation (Create)
+// est protegee par la permission "services:create" ; les autres
+// operations (List, Get, Delete, RotateAPIKey) par "services:manage" --
+// voir router.go et la doc de application.PermServicesManage pour la
+// raison de cette separation.
 type ServiceHandler struct {
 	Services application.ServiceRepository
 }
@@ -41,6 +42,71 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, createServiceResponse{
+		ID:          svc.ID,
+		Name:        svc.Name,
+		Description: svc.Description,
+		APIKey:      plainAPIKey,
+	})
+}
+
+// Get gere GET /services/{id}. Ne retourne jamais APIKeyHash, meme hache
+// (voir serviceResponse).
+func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
+	svc, err := h.Services.GetByID(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, newServiceResponse(svc))
+}
+
+// List gere GET /services
+func (h *ServiceHandler) List(w http.ResponseWriter, r *http.Request) {
+	services, err := h.Services.List(r.Context())
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	resp := make([]serviceResponse, len(services))
+	for i, svc := range services {
+		resp[i] = newServiceResponse(svc)
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// Delete gere DELETE /services/{id}
+func (h *ServiceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	if err := h.Services.Delete(r.Context(), r.PathValue("id")); err != nil {
+		writeError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// RotateAPIKey gere POST /services/{id}/rotate-key. Genere une nouvelle
+// cle API pour ce service, invalidant l'ancienne immediatement -- utile
+// en cas de compromission suspectee ou de rotation planifiee. Comme a la
+// creation, la nouvelle cle en clair n'apparait que dans CETTE reponse.
+func (h *ServiceHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
+	svc, err := h.Services.GetByID(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	plainAPIKey, err := svc.RotateAPIKey()
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := h.Services.UpdateAPIKeyHash(r.Context(), svc.ID, svc.APIKeyHash); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, createServiceResponse{
 		ID:          svc.ID,
 		Name:        svc.Name,
 		Description: svc.Description,

@@ -105,6 +105,20 @@ type loginResponse struct {
 	ExpiresAt time.Time    `json:"expires_at"`
 }
 
+// serviceResponse expose un service SANS jamais inclure la cle API (meme
+// hachee) -- contrairement a createServiceResponse, qui n'apparait que
+// juste apres la creation ou une rotation.
+type serviceResponse struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func newServiceResponse(s *domain.Service) serviceResponse {
+	return serviceResponse{ID: s.ID, Name: s.Name, Description: s.Description, CreatedAt: s.CreatedAt}
+}
+
 type createServiceRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -112,7 +126,8 @@ type createServiceRequest struct {
 
 // createServiceResponse est le SEUL endroit ou APIKey (en clair) apparait
 // jamais dans une reponse HTTP -- exactement comme domain.NewService le
-// garantit deja au niveau du domaine (voir domain/service.go).
+// garantit deja au niveau du domaine (voir domain/service.go). Reutilisee
+// telle quelle pour la reponse de rotation de cle (meme forme).
 type createServiceResponse struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`

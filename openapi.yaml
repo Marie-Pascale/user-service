@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.4.0"
+  version: "0.5.0"
 
 servers:
   - url: http://localhost:8080
@@ -336,6 +336,99 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+    get:
+      tags: [services]
+      summary: Liste tous les services tiers
+      description: Requiert la permission `services:manage`. Ne retourne jamais la cle API (meme hachee).
+      security:
+        - SessionAuth: []
+      responses:
+        "200":
+          description: Liste des services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Service"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /services/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [services]
+      summary: Recupere un service par ID
+      description: Requiert la permission `services:manage`. Ne retourne jamais la cle API (meme hachee).
+      security:
+        - SessionAuth: []
+      responses:
+        "200":
+          description: Le service demande
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [services]
+      summary: Supprime un service
+      description: Requiert la permission `services:manage`.
+      security:
+        - SessionAuth: []
+      responses:
+        "204":
+          description: Service supprime
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /services/{id}/rotate-key:
+    post:
+      tags: [services]
+      summary: Fait pivoter la cle API d'un service, invalidant l'ancienne immediatement
+      description: >
+        Requiert la permission `services:manage`. Retourne la nouvelle cle
+        en clair -- affichee UNE SEULE FOIS, comme a la creation.
+      security:
+        - SessionAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Nouvelle cle API generee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateServiceResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /permissions:
     post:
@@ -974,6 +1067,21 @@ components:
           type: string
           description: Jeton de session en clair -- n'apparait que dans cette reponse.
         expires_at:
+          type: string
+          format: date-time
+
+    Service:
+      type: object
+      description: Ne contient JAMAIS la cle API, meme hachee -- voir CreateServiceResponse pour la seule reponse qui l'expose.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        created_at:
           type: string
           format: date-time
 

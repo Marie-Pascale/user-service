@@ -32,6 +32,13 @@ const (
 	PermUsersDeleteAny = "users:delete:any"
 	PermServicesCreate = "services:create"
 
+	// PermServicesManage couvre consultation, suppression et rotation de
+	// cle -- separee de PermServicesCreate parce qu'on pourrait vouloir
+	// deleguer la creation de services (ex: a une equipe plateforme) sans
+	// donner acces a la gestion (rotation de cle) de services deja
+	// existants crees par d'autres.
+	PermServicesManage = "services:manage"
+
 	// Gestion du RBAC lui-meme -- creer/supprimer des permissions, roles,
 	// groupes, et gerer leurs associations. Un seul niveau de permission
 	// par entite (pas de distinction read/write/delete comme pour User) :

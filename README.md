@@ -175,6 +175,9 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `POST` | `/auth/logout` | Révoque la session courante | **Session** (`Authorization: Bearer`) |
 | `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
 | `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Session + `services:create` |
+| `GET` | `/services` | Liste tous les services (jamais la clé, même hachée) | Session + `services:manage` |
+| `GET` / `DELETE` | `/services/{id}` | Récupère / supprime un service | Session + `services:manage` |
+| `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
 | `GET` | `/permissions?service_id=...` | Liste les permissions d'un service | Session + `permissions:manage` |
@@ -191,7 +194,7 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `DELETE` | `/groups/{id}/members/{userId}` | Retire un membre | Session + `groups:manage` |
 | `POST` | `/groups/{id}/roles` | Assigne un rôle au groupe, hérité par tous ses membres (`{"role_id"}`) | Session + `groups:manage` |
 
-**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante). Les routes `/permissions`, `/roles` et `/groups` n'ont pas cette exception : aucune notion de "soi-même" n'existe pour ces entités.
+**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante). Les routes `/services`, `/permissions`, `/roles` et `/groups` n'ont pas cette exception : aucune notion de "soi-même" n'existe pour ces entités.
 
 **Trois mécanismes distincts, jamais confondus** :
 - Services tiers → `X-API-Key: <clé>` (clé permanente jusqu'à rotation)
@@ -228,12 +231,29 @@ curl localhost:8080/users -H "Authorization: Bearer a1b2c3..."
 curl -X POST localhost:8080/services -H "Authorization: Bearer a1b2c3..." -d '{"name":"orders-service","description":""}'
 # -> {"id":"...", "api_key":"a1b2c3..."}
 
+# 5b. Si la cle est compromise, la faire pivoter -- l'ancienne cesse de
+# fonctionner immediatement
+curl -X POST localhost:8080/services/<service-id>/rotate-key -H "Authorization: Bearer a1b2c3..."
+# -> {"id":"...", "api_key":"nouvelle-cle..."}
+
 # --- Cote services tiers (mecanisme separe, cle API) ---
 
 # 6. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
 ```
+
+## CORS (pour un frontend)
+
+L'API autorise les requêtes cross-origin via `CORSMiddleware`, configuré par la variable d'environnement `CORS_ALLOWED_ORIGINS` (liste séparée par des virgules, ou `*` pour tout autoriser). Par défaut, `docker-compose.yml` la met à `*` — pratique en développement local avec un frontend sur un autre port (ex: `http://localhost:5173` pour Vite), mais **à restreindre explicitement** avant toute exposition au-delà de ta machine :
+
+```yaml
+# docker-compose.yml
+environment:
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173,https://mon-frontend.example"
+```
+
+Contrairement aux autres middlewares du projet (qui protègent chacun une route précise), celui-ci enveloppe le routeur **au complet** dans `main.go` — un navigateur peut envoyer une requête *preflight* (`OPTIONS`) vers n'importe quelle route, et les en-têtes CORS doivent être présents sur toutes les réponses, succès comme erreurs.
 
 ## Prochaines étapes
 

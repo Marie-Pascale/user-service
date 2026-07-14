@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"gestionnaire-usagers/internal/application"
@@ -73,6 +74,15 @@ func main() {
 		serviceAuth, userAuth, authz,
 	)
 
+	// CORS enveloppe TOUT le mux (pas une route precise) -- voir la doc
+	// de CORSMiddleware pour pourquoi. "*" par defaut, pratique en
+	// developpement local avec un frontend sur un autre port, mais a
+	// restreindre via CORS_ALLOWED_ORIGINS (liste separee par des
+	// virgules, ex: "http://localhost:5173,https://mon-frontend.example")
+	// des que l'API est exposee au-dela de ta machine.
+	cors := httpapi.NewCORSMiddleware(strings.Split(getEnv("CORS_ALLOWED_ORIGINS", "*"), ","))
+	handler := cors.Wrap(mux)
+
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"
@@ -80,7 +90,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:         ":" + port,
-		Handler:      mux,
+		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
@@ -89,4 +99,13 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// getEnv lit une variable d'environnement, avec une valeur de repli si
+// elle est absente ou vide.
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
