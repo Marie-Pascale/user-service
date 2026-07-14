@@ -12,8 +12,8 @@ import (
 //
 // Chaque middleware n'enveloppe QUE les routes qui en ont besoin -- pas le
 // mux entier (voir la discussion sur le placement des middlewares plus tot
-// dans le projet). Pour les routes usager protegees, l'ordre de chainage
-// est TOUJOURS : session (authentification) -> permission (autorisation) ->
+// dans le projet). Pour les routes protegees, l'ordre de chainage est
+// TOUJOURS : session (authentification) -> permission (autorisation) ->
 // handler. On ne peut pas verifier une permission sans savoir d'abord QUI
 // fait la requete.
 func NewRouter(
@@ -21,11 +21,21 @@ func NewRouter(
 	authHandler *AuthHandler,
 	serviceHandler *ServiceHandler,
 	permissionsHandler *PermissionsHandler,
+	permissionHandler *PermissionHandler,
+	roleHandler *RoleHandler,
+	groupHandler *GroupHandler,
 	serviceAuth *ServiceAuthMiddleware,
 	userAuth *UserAuthMiddleware,
 	authz *AuthorizationMiddleware,
 ) *http.ServeMux {
 	mux := http.NewServeMux()
+
+	// protected() combine session + permission -- raccourci pour eviter de
+	// repeter userAuth.Authenticate(authz.RequirePermission(...)(...)) sur
+	// chaque route de gestion RBAC ci-dessous.
+	protected := func(permissionKey string, h http.HandlerFunc) http.Handler {
+		return userAuth.Authenticate(authz.RequirePermission(permissionKey)(h))
+	}
 
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /docs", docsHandler)
@@ -37,28 +47,46 @@ func NewRouter(
 	// Ouverte : il faut bien pouvoir se connecter avant d'avoir un jeton.
 	mux.HandleFunc("POST /auth/login", authHandler.Login)
 
-	// Protegees par session : usager authentifie requis pour toutes les
-	// routes ci-dessous.
+	// Protegees par session seulement : usager authentifie requis.
 	mux.Handle("GET /me", userAuth.Authenticate(http.HandlerFunc(userHandler.Me)))
 	mux.Handle("POST /auth/logout", userAuth.Authenticate(http.HandlerFunc(authHandler.Logout)))
 
-	mux.Handle("GET /users",
-		userAuth.Authenticate(authz.RequirePermission(application.PermUsersReadAny)(http.HandlerFunc(userHandler.List))))
-
+	// Usagers -- protection "self-ou-permission" (voir AuthorizationMiddleware).
+	mux.Handle("GET /users", protected(application.PermUsersReadAny, userHandler.List))
 	mux.Handle("GET /users/{id}",
 		userAuth.Authenticate(authz.RequireSelfOrPermission(application.PermUsersReadAny)(http.HandlerFunc(userHandler.Get))))
-
 	mux.Handle("PUT /users/{id}",
 		userAuth.Authenticate(authz.RequireSelfOrPermission(application.PermUsersWriteAny)(http.HandlerFunc(userHandler.Update))))
-
 	mux.Handle("DELETE /users/{id}",
 		userAuth.Authenticate(authz.RequireSelfOrPermission(application.PermUsersDeleteAny)(http.HandlerFunc(userHandler.Delete))))
-
 	mux.Handle("POST /users/{id}/password",
 		userAuth.Authenticate(authz.RequireSelfOrPermission(application.PermUsersWriteAny)(http.HandlerFunc(authHandler.SetPassword))))
 
-	mux.Handle("POST /services",
-		userAuth.Authenticate(authz.RequirePermission(application.PermServicesCreate)(http.HandlerFunc(serviceHandler.Create))))
+	// Services tiers -- creation reservee aux admins.
+	mux.Handle("POST /services", protected(application.PermServicesCreate, serviceHandler.Create))
+
+	// Permissions -- gestion RBAC, aucune notion de "soi-meme".
+	mux.Handle("POST /permissions", protected(application.PermPermissionsManage, permissionHandler.Create))
+	mux.Handle("GET /permissions", protected(application.PermPermissionsManage, permissionHandler.ListByService))
+	mux.Handle("GET /permissions/{id}", protected(application.PermPermissionsManage, permissionHandler.Get))
+	mux.Handle("DELETE /permissions/{id}", protected(application.PermPermissionsManage, permissionHandler.Delete))
+
+	// Roles
+	mux.Handle("POST /roles", protected(application.PermRolesManage, roleHandler.Create))
+	mux.Handle("GET /roles", protected(application.PermRolesManage, roleHandler.List))
+	mux.Handle("GET /roles/{id}", protected(application.PermRolesManage, roleHandler.Get))
+	mux.Handle("DELETE /roles/{id}", protected(application.PermRolesManage, roleHandler.Delete))
+	mux.Handle("POST /roles/{id}/permissions", protected(application.PermRolesManage, roleHandler.GrantPermission))
+	mux.Handle("DELETE /roles/{id}/permissions/{permissionId}", protected(application.PermRolesManage, roleHandler.RevokePermission))
+
+	// Groupes
+	mux.Handle("POST /groups", protected(application.PermGroupsManage, groupHandler.Create))
+	mux.Handle("GET /groups", protected(application.PermGroupsManage, groupHandler.List))
+	mux.Handle("GET /groups/{id}", protected(application.PermGroupsManage, groupHandler.Get))
+	mux.Handle("DELETE /groups/{id}", protected(application.PermGroupsManage, groupHandler.Delete))
+	mux.Handle("POST /groups/{id}/members", protected(application.PermGroupsManage, groupHandler.AddMember))
+	mux.Handle("DELETE /groups/{id}/members/{userId}", protected(application.PermGroupsManage, groupHandler.RemoveMember))
+	mux.Handle("POST /groups/{id}/roles", protected(application.PermGroupsManage, groupHandler.AssignRole))
 
 	// Protegee par cle API (services tiers, pas des usagers).
 	mux.Handle("GET /users/{id}/permissions", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.ListForUser)))

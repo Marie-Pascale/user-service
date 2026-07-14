@@ -31,4 +31,13 @@ const (
 	PermUsersWriteAny  = "users:write:any"
 	PermUsersDeleteAny = "users:delete:any"
 	PermServicesCreate = "services:create"
+
+	// Gestion du RBAC lui-meme -- creer/supprimer des permissions, roles,
+	// groupes, et gerer leurs associations. Un seul niveau de permission
+	// par entite (pas de distinction read/write/delete comme pour User) :
+	// ces entites n'ont pas de notion de "soi-meme", donc pas de raison
+	// de subdiviser davantage pour l'instant.
+	PermPermissionsManage = "permissions:manage"
+	PermRolesManage       = "roles:manage"
+	PermGroupsManage      = "groups:manage"
 )

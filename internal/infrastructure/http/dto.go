@@ -119,3 +119,77 @@ type createServiceResponse struct {
 	Description string `json:"description"`
 	APIKey      string `json:"api_key"`
 }
+
+// --- Permission ------------------------------------------------------
+
+type permissionResponse struct {
+	ID          string `json:"id"`
+	ServiceID   string `json:"service_id"`
+	Key         string `json:"key"`
+	Description string `json:"description"`
+}
+
+func newPermissionResponse(p *domain.Permission) permissionResponse {
+	return permissionResponse{ID: p.ID, ServiceID: p.ServiceID, Key: p.Key, Description: p.Description}
+}
+
+type createPermissionRequest struct {
+	ServiceID   string `json:"service_id"`
+	Key         string `json:"key"`
+	Description string `json:"description"`
+}
+
+// --- Role --------------------------------------------------------------
+
+type roleResponse struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	PermissionIDs []string `json:"permission_ids"`
+}
+
+func newRoleResponse(r *domain.Role) roleResponse {
+	return roleResponse{ID: r.ID, Name: r.Name, Description: r.Description, PermissionIDs: r.PermissionIDs}
+}
+
+type createRoleRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type roleGrantPermissionRequest struct {
+	PermissionID string `json:"permission_id"`
+}
+
+// --- Group -------------------------------------------------------------
+
+type groupResponse struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	MemberUserIDs []string `json:"member_user_ids"`
+	RoleIDs       []string `json:"role_ids"`
+}
+
+func newGroupResponse(g *domain.Group) groupResponse {
+	return groupResponse{
+		ID:            g.ID,
+		Name:          g.Name,
+		Description:   g.Description,
+		MemberUserIDs: g.MemberUserIDs,
+		RoleIDs:       g.RoleIDs,
+	}
+}
+
+type createGroupRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type groupAddMemberRequest struct {
+	UserID string `json:"user_id"`
+}
+
+type groupAssignRoleRequest struct {
+	RoleID string `json:"role_id"`
+}

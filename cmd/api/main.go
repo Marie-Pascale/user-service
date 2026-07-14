@@ -60,11 +60,18 @@ func main() {
 	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate, createSession, logout)
 	serviceHandler := httpapi.NewServiceHandler(services)
 	permissionsHandler := httpapi.NewPermissionsHandler(authorization)
+	permissionHandler := httpapi.NewPermissionHandler(permissions)
+	roleHandler := httpapi.NewRoleHandler(roles)
+	groupHandler := httpapi.NewGroupHandler(groups)
 	serviceAuth := httpapi.NewServiceAuthMiddleware(services)
 	userAuth := httpapi.NewUserAuthMiddleware(sessions, users)
 	authz := httpapi.NewAuthorizationMiddleware(authorization)
 
-	mux := httpapi.NewRouter(userHandler, authHandler, serviceHandler, permissionsHandler, serviceAuth, userAuth, authz)
+	mux := httpapi.NewRouter(
+		userHandler, authHandler, serviceHandler, permissionsHandler,
+		permissionHandler, roleHandler, groupHandler,
+		serviceAuth, userAuth, authz,
+	)
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {

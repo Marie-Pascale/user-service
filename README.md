@@ -176,8 +176,22 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
 | `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Session + `services:create` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
+| `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
+| `GET` | `/permissions?service_id=...` | Liste les permissions d'un service | Session + `permissions:manage` |
+| `GET` / `DELETE` | `/permissions/{id}` | Récupère / supprime une permission | Session + `permissions:manage` |
+| `POST` | `/roles` | Crée un rôle (`{"name", "description"}`) | Session + `roles:manage` |
+| `GET` | `/roles` | Liste tous les rôles | Session + `roles:manage` |
+| `GET` / `DELETE` | `/roles/{id}` | Récupère (avec ses permissions) / supprime un rôle | Session + `roles:manage` |
+| `POST` | `/roles/{id}/permissions` | Accorde une permission à un rôle (`{"permission_id"}`) | Session + `roles:manage` |
+| `DELETE` | `/roles/{id}/permissions/{permissionId}` | Révoque une permission d'un rôle | Session + `roles:manage` |
+| `POST` | `/groups` | Crée un groupe (`{"name", "description"}`) | Session + `groups:manage` |
+| `GET` | `/groups` | Liste tous les groupes | Session + `groups:manage` |
+| `GET` / `DELETE` | `/groups/{id}` | Récupère (membres + rôles) / supprime un groupe | Session + `groups:manage` |
+| `POST` | `/groups/{id}/members` | Ajoute un membre (`{"user_id"}`) | Session + `groups:manage` |
+| `DELETE` | `/groups/{id}/members/{userId}` | Retire un membre | Session + `groups:manage` |
+| `POST` | `/groups/{id}/roles` | Assigne un rôle au groupe, hérité par tous ses membres (`{"role_id"}`) | Session + `groups:manage` |
 
-**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante).
+**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante). Les routes `/permissions`, `/roles` et `/groups` n'ont pas cette exception : aucune notion de "soi-même" n'existe pour ces entités.
 
 **Trois mécanismes distincts, jamais confondus** :
 - Services tiers → `X-API-Key: <clé>` (clé permanente jusqu'à rotation)
@@ -225,5 +239,4 @@ curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 
 - Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
 - Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
-- Handlers HTTP pour `Permission`, `Role`, `Group` (même patron que `UserHandler`), pour gérer le RBAC sans passer par SQL direct
-- Interface (CLI ou route admin protégée) pour créer des permissions/rôles personnalisés au-delà du rôle `admin` seedé par défaut
+- Tests de charge pour les nouveaux endpoints critiques (voir `loadtest/README.md`)
