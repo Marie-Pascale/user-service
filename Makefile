@@ -1,4 +1,4 @@
-.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy grant-admin clean-db
+.PHONY: help test test-verbose test-integration coverage race bench load-test-health up rebuild down ensure-up shell mod-tidy grant-admin clean-db
 
 .DEFAULT_GOAL := help
 
@@ -18,6 +18,9 @@ ensure-up: ## Demarre les conteneurs en mode detache s'ils ne tournent pas deja
 
 up: ## Demarre l'API et la base de donnees (logs attaches)
 	docker compose up --build
+
+rebuild: ## Force la reconstruction de l'image api, meme si le conteneur tourne deja
+	docker compose up -d --build
 
 down: ## Arrete les conteneurs
 	docker compose down
@@ -52,7 +55,7 @@ coverage: ensure-up ## Genere un rapport de couverture de code (HTML)
 	@echo "Rapport genere : coverage.html (visible directement sur ton disque grace au volume monte)"
 
 race: ensure-up ## Lance les tests avec le detecteur de race conditions
-	$(EXEC) go test -race ./...
+	docker compose exec -e CGO_ENABLED=1 api go test -race ./...
 
 bench: ensure-up ## Lance les benchmarks Go (performance au niveau du code)
 	$(EXEC) go test -bench=. -benchmem ./...

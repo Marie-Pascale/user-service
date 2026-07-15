@@ -26,6 +26,8 @@ make
 ```
 (ou `make help`, équivalent) Liste toutes les cibles du `Makefile` avec leur description, générée automatiquement à partir des commentaires `## ...` qui suivent chaque cible — pas besoin de maintenir cette liste à la main : ajoute simplement `## description` après une nouvelle cible et elle apparaîtra dans le menu.
 
+**Après avoir modifié le `Dockerfile`** (nouvelle dépendance système, nouvel outil installé...), lance `make rebuild` explicitement. `ensure-up` (dont dépendent la plupart des cibles) ne reconstruit l'image que si le conteneur `api` n'est **pas déjà en marche** — s'il tourne déjà avec une image périmée, il continue de l'utiliser telle quelle, sans jamais rebuilder tout seul.
+
 ## Démarrage
 
 **Obligatoire avant le tout premier `make up`** (seulement si `go.sum` n'existe pas encore dans le projet) : génère-le avec l'une de ces deux méthodes.
@@ -215,6 +217,8 @@ make grant-admin email=alice@example.com
 ```
 
 Requête SQL directe contre la base — volontairement, il n'existe **aucune route HTTP** pour accorder le rôle admin : ça éviterait sinon le problème classique de l'œuf et la poule au tout premier déploiement (qui protégerait la route qui donne les droits d'admin ?).
+
+**Garde-fou** : `admin` doit toujours posséder *toutes* les permissions définies par l'application (`application.AllPermissionKeys`, dans `authorization_policy.go`). Un test d'intégration (`TestAdminRole_HasAllApplicationPermissions`) vérifie cet invariant contre la vraie base à chaque `make test-integration` — si une nouvelle permission est ajoutée au code sans migration correspondante pour l'accorder à `admin`, ce test échoue plutôt que de laisser passer une régression silencieuse (un admin qui perd accès à une fonctionnalité sans que personne ne s'en aperçoive avant la production).
 
 **Exemple d'utilisation de bout en bout** :
 ```bash

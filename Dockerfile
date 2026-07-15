@@ -2,6 +2,13 @@ FROM golang:1.25-alpine
 
 WORKDIR /app
 
+# gcc + musl-dev : requis par cgo, lui-meme requis par "go test -race"
+# (le detecteur de race conditions s'appuie sur une bibliotheque C).
+# Absent par defaut des images alpine (contrairement aux images golang
+# standards, non-alpine) -- voir make race dans le Makefile, qui active
+# cgo explicitement pour cette seule commande.
+RUN apk add --no-cache gcc musl-dev
+
 # Installe air pour le hot-reload en developpement.
 # Version epinglee (plutot que @latest) pour eviter qu'une future version
 # d'air exige une version de Go plus recente que l'image utilisee ici,

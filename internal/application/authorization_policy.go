@@ -48,3 +48,24 @@ const (
 	PermRolesManage       = "roles:manage"
 	PermGroupsManage      = "groups:manage"
 )
+
+// AllPermissionKeys liste TOUTES les permissions ci-dessus -- source de
+// verite unique, utilisee par un test d'integration
+// (TestAdminRole_HasAllApplicationPermissions) qui verifie que le role
+// admin semee par les migrations possede bien chacune d'entre elles.
+//
+// REGLE A SUIVRE : quand une nouvelle constante Perm* est ajoutee
+// ci-dessus, elle doit AUSSI etre ajoutee ici, ET accordee au role admin
+// dans une migration (voir 000013/000014/000015 pour des exemples). Oublier
+// l'un des trois fait echouer ce test integration -- c'est le but : un
+// oubli devient une erreur detectee, pas un bug silencieux en production.
+var AllPermissionKeys = []string{
+	PermUsersReadAny,
+	PermUsersWriteAny,
+	PermUsersDeleteAny,
+	PermServicesCreate,
+	PermServicesManage,
+	PermPermissionsManage,
+	PermRolesManage,
+	PermGroupsManage,
+}

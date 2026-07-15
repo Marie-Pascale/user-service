@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if err := truncateAllTables(ctx, pool); err != nil {
+	if err := cleanTestData(ctx, pool); err != nil {
 		fmt.Fprintf(os.Stderr, "nettoyage de la base de test: %v\n", err)
 		pool.Close()
 		os.Exit(1)
@@ -42,13 +42,34 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// truncateAllTables vide toutes les tables susceptibles de contenir des
-// donnees de test. CASCADE se charge automatiquement des tables de
-// jonction (auth_methods, role_permissions, group_members, group_roles,
-// user_roles, user_permissions, sessions) qui referencent celles-ci --
-// pas besoin de les lister une par une ni de respecter un ordre precis.
-func truncateAllTables(ctx context.Context, pool *pgxpool.Pool) error {
-	const query = `TRUNCATE TABLE users, services, roles, groups, permissions CASCADE`
-	_, err := pool.Exec(ctx, query)
-	return err
+// cleanTestData supprime toutes les donnees susceptibles d'avoir ete
+// laissees par un run precedent -- SAUF les lignes semees par les
+// migrations (000013_seed_self_service et suivantes : le self-service,
+// le role admin, leurs permissions). Un simple TRUNCATE les aurait
+// egalement effacees, ce qui aurait fait echouer
+// TestAdminRole_HasAllApplicationPermissions pour la mauvaise raison --
+// pas un vrai bug, mais un nettoyage trop agressif qui detruit ce qu'il
+// est cense proteger.
+//
+// users et groups n'ont aucune donnee semee : suppression totale, sans
+// condition. roles/services/permissions excluent explicitement les ID
+// fixes des migrations (voir application.SelfServiceID, AdminRoleID).
+// Les tables de jonction (sessions, auth_methods, role_permissions,
+// group_members, group_roles, user_roles, user_permissions) n'ont pas
+// besoin d'etre listees : les contraintes ON DELETE CASCADE deja
+// definies dans les migrations s'en chargent automatiquement.
+func cleanTestData(ctx context.Context, pool *pgxpool.Pool) error {
+	statements := []string{
+		`DELETE FROM users`,
+		`DELETE FROM groups`,
+		`DELETE FROM roles WHERE id <> '00000000-0000-0000-0000-000000000002'`,
+		`DELETE FROM services WHERE id <> '00000000-0000-0000-0000-000000000001'`,
+		`DELETE FROM permissions WHERE service_id <> '00000000-0000-0000-0000-000000000001'`,
+	}
+	for _, stmt := range statements {
+		if _, err := pool.Exec(ctx, stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
