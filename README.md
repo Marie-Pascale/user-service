@@ -118,9 +118,14 @@ make migrate-down      # annule la derniere migration
 make migrate-reset     # annule TOUT le schema (destructif, dev seulement)
 make migrate-version   # affiche la version actuelle
 make migrate-create name=nom_de_la_migration   # cree une nouvelle paire up/down
+make clean-db           # reinitialise completement la BD (equivalent a migrate-reset + migrate-up)
 ```
 
 Après `make up` la première fois, lance `make migrate-up` pour créer les tables.
+
+**`make clean-db`** repart d'une base complètement vide et réapplique toutes les migrations dans l'ordre — y compris celles qui sèment des données (`000013`-`000015` : self-service, rôle `admin`, permissions internes). Utile après une session de tests manuels (`curl`) pour repartir d'un état propre, **sans** avoir à relancer `make grant-admin` (le rôle admin revient, mais plus aucun usager n'y est assigné — il faudra recréer un compte et le lier à nouveau).
+
+Pour les tests d'intégration automatisés (`make test-integration`), le nettoyage se fait différemment : un `TestMain` vide les tables **avant** que la suite ne démarre (voir `internal/infrastructure/repository/main_test.go`), garantissant un état propre peu importe si le run précédent a échoué avant d'atteindre ses `t.Cleanup`. `make clean-db` reste utile en complément pour un nettoyage manuel, ponctuel, en dehors du cycle de test.
 
 ## Entités du domaine
 

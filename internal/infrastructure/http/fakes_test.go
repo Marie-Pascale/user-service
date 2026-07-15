@@ -240,7 +240,17 @@ func (f *fakeServiceRepo) UpdateAPIKeyHash(ctx context.Context, id, newHash stri
 	if !ok {
 		return application.ErrNotFound
 	}
-	delete(f.byKeyHash, s.APIKeyHash)
+	// On ne peut PAS se fier a s.APIKeyHash pour savoir quelle entree
+	// retirer de l'index par hash : domain.Service.RotateAPIKey() a deja
+	// mute ce champ EN MEMOIRE avant que ServiceHandler.RotateAPIKey
+	// n'appelle cette methode -- s.APIKeyHash contient donc deja la
+	// NOUVELLE valeur, pas l'ancienne. On retire plutot toute entree de
+	// l'index qui pointe vers CE service, peu importe son hash actuel.
+	for hash, svc := range f.byKeyHash {
+		if svc.ID == id {
+			delete(f.byKeyHash, hash)
+		}
+	}
 	s.APIKeyHash = newHash
 	f.byKeyHash[newHash] = s
 	return nil

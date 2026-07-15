@@ -41,6 +41,48 @@ func TestPostgresServiceRepository_CreateAndVerify(t *testing.T) {
 	}
 }
 
+func TestPostgresServiceRepository_UpdateAPIKeyHash(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+	repo := NewPostgresServiceRepository(pool)
+
+	svc, oldKey, err := domain.NewService(domain.NewID(), "rotate-service", "")
+	if err != nil {
+		t.Fatalf("construction: %v", err)
+	}
+	t.Cleanup(func() { _ = repo.Delete(ctx, svc.ID) })
+
+	if err := repo.Create(ctx, svc); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Reproduit exactement la sequence de ServiceHandler.RotateAPIKey :
+	// le domaine mute svc.APIKeyHash EN MEMOIRE, puis on persiste.
+	newKey, err := svc.RotateAPIKey()
+	if err != nil {
+		t.Fatalf("RotateAPIKey: %v", err)
+	}
+	if err := repo.UpdateAPIKeyHash(ctx, svc.ID, svc.APIKeyHash); err != nil {
+		t.Fatalf("UpdateAPIKeyHash: %v", err)
+	}
+
+	if _, err := repo.GetByAPIKeyHash(ctx, domain.HashToken(oldKey)); !errors.Is(err, application.ErrNotFound) {
+		t.Errorf("l'ancienne cle devrait etre invalide, erreur = %v, attendu %v", err, application.ErrNotFound)
+	}
+
+	got, err := repo.GetByAPIKeyHash(ctx, domain.HashToken(newKey))
+	if err != nil {
+		t.Fatalf("GetByAPIKeyHash avec la nouvelle cle: %v", err)
+	}
+	if got.ID != svc.ID {
+		t.Errorf("ID = %q, attendu %q", got.ID, svc.ID)
+	}
+}
+
 // --- Permission --------------------------------------------------------
 
 func TestPostgresPermissionRepository_CreateAndListByService(t *testing.T) {

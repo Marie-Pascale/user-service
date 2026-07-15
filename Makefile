@@ -1,4 +1,4 @@
-.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy grant-admin
+.PHONY: help test test-verbose test-integration coverage race bench load-test-health up down ensure-up shell mod-tidy grant-admin clean-db
 
 .DEFAULT_GOAL := help
 
@@ -31,6 +31,10 @@ mod-tidy: ensure-up ## Mets a jour les dependances du projet (go mod tidy), sans
 grant-admin: ensure-up ## Accorde le role admin a un usager existant : make grant-admin email=alice@example.com
 	docker compose exec db psql -U usagers -d usagers_db -c \
 		"INSERT INTO user_roles (user_id, role_id) SELECT id, '00000000-0000-0000-0000-000000000002' FROM users WHERE email = '$(email)' ON CONFLICT DO NOTHING;"
+
+clean-db: ensure-up ## Reinitialise completement la BD : supprime tout le schema puis reapplique les migrations (garde les donnees seedees intactes)
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" down -all
+	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" up
 
 ## Tests unitaires (executes dans le conteneur) --------------------------
 
