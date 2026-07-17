@@ -49,6 +49,37 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newRoleResponse(role))
 }
 
+// Update gere PUT /roles/{id} -- modifie Name/Description uniquement.
+// GrantPermission/RevokePermission restent les seules facons de modifier
+// PermissionIDs.
+func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
+	roleID := r.PathValue("id")
+
+	var req createRoleRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		return
+	}
+
+	role, err := h.Roles.GetByID(r.Context(), roleID)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := role.UpdateDetails(req.Name, req.Description); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := h.Roles.Update(r.Context(), role); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, newRoleResponse(role))
+}
+
 // List gere GET /roles
 func (h *RoleHandler) List(w http.ResponseWriter, r *http.Request) {
 	roles, err := h.Roles.List(r.Context())

@@ -72,3 +72,16 @@ func (g *Group) AssignRole(roleID string) {
 	}
 	g.RoleIDs = append(g.RoleIDs, roleID)
 }
+
+// UpdateDetails modifie le nom et la description d'un groupe existant,
+// avec la meme validation que NewGroup. Ne touche jamais MemberUserIDs ni
+// RoleIDs -- geres separement via AddMember/RemoveMember/AssignRole.
+func (g *Group) UpdateDetails(name, description string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ErrEmptyGroupName
+	}
+	g.Name = name
+	g.Description = description
+	return nil
+}

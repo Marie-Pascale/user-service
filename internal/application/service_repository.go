@@ -18,6 +18,10 @@ type ServiceRepository interface {
 
 	List(ctx context.Context) ([]*domain.Service, error)
 
+	// Update persiste Name/Description uniquement -- la cle API est geree
+	// separement via UpdateAPIKeyHash.
+	Update(ctx context.Context, s *domain.Service) error
+
 	// UpdateAPIKeyHash persiste un nouveau hash suite a une rotation de cle.
 	UpdateAPIKeyHash(ctx context.Context, id, newAPIKeyHash string) error
 

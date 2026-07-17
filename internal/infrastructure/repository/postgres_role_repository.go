@@ -92,6 +92,18 @@ func (r *PostgresRoleRepository) List(ctx context.Context) ([]*domain.Role, erro
 	return roles, rows.Err()
 }
 
+func (r *PostgresRoleRepository) Update(ctx context.Context, role *domain.Role) error {
+	const query = `UPDATE roles SET name = $2, description = $3 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, role.ID, role.Name, role.Description)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
+}
+
 func (r *PostgresRoleRepository) GrantPermission(ctx context.Context, roleID, permissionID string) error {
 	const query = `
 		INSERT INTO role_permissions (role_id, permission_id)

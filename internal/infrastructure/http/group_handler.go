@@ -49,6 +49,37 @@ func (h *GroupHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newGroupResponse(g))
 }
 
+// Update gere PUT /groups/{id} -- modifie Name/Description uniquement.
+// AddMember/RemoveMember/AssignRole restent les seules facons de modifier
+// MemberUserIDs/RoleIDs.
+func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
+	groupID := r.PathValue("id")
+
+	var req createGroupRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		return
+	}
+
+	g, err := h.Groups.GetByID(r.Context(), groupID)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := g.UpdateDetails(req.Name, req.Description); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := h.Groups.Update(r.Context(), g); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, newGroupResponse(g))
+}
+
 // List gere GET /groups
 func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 	groups, err := h.Groups.List(r.Context())

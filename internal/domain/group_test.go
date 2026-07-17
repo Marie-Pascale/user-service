@@ -54,3 +54,31 @@ func TestGroup_AssignRole(t *testing.T) {
 		t.Errorf("RoleIDs = %v, un role duplique ne devrait pas etre ajoute", g.RoleIDs)
 	}
 }
+
+func TestGroup_UpdateDetails(t *testing.T) {
+	t.Run("met a jour nom et description", func(t *testing.T) {
+		g, _ := NewGroup("1", "equipe-support", "ancienne description")
+		g.AddMember("user-1")
+		g.AssignRole("role-1")
+
+		err := g.UpdateDetails("equipe-support-fr", "nouvelle description")
+		if err != nil {
+			t.Fatalf("erreur inattendue: %v", err)
+		}
+		if g.Name != "equipe-support-fr" {
+			t.Errorf("Name = %q, attendu %q", g.Name, "equipe-support-fr")
+		}
+		if len(g.MemberUserIDs) != 1 || len(g.RoleIDs) != 1 {
+			t.Error("MemberUserIDs et RoleIDs ne devraient pas etre affectes par UpdateDetails")
+		}
+	})
+
+	t.Run("rejette un nom vide", func(t *testing.T) {
+		g, _ := NewGroup("1", "equipe-support", "")
+
+		err := g.UpdateDetails("", "description")
+		if err != ErrEmptyGroupName {
+			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyGroupName)
+		}
+	})
+}

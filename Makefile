@@ -32,8 +32,18 @@ mod-tidy: ensure-up ## Mets a jour les dependances du projet (go mod tidy), sans
 	$(EXEC) go mod tidy
 
 grant-admin: ensure-up ## Accorde le role admin a un usager existant : make grant-admin email=alice@example.com
-	docker compose exec db psql -U usagers -d usagers_db -c \
-		"INSERT INTO user_roles (user_id, role_id) SELECT id, '00000000-0000-0000-0000-000000000002' FROM users WHERE email = '$(email)' ON CONFLICT DO NOTHING;"
+	@if [ -z "$(email)" ]; then \
+		echo "Erreur : email est requis -- utilise \"make grant-admin email=alice@example.com\""; \
+		echo "(pas d'argument positionnel : make ne lit pas les arguments comme un script shell)"; \
+		exit 1; \
+	fi
+	@result=$$(docker compose exec db psql -U usagers -d usagers_db -t -c \
+		"INSERT INTO user_roles (user_id, role_id) SELECT id, '00000000-0000-0000-0000-000000000002' FROM users WHERE email = '$(email)' ON CONFLICT DO NOTHING RETURNING user_id;"); \
+	if [ -n "$$(echo "$$result" | tr -d '[:space:]')" ]; then \
+		echo "Role admin accorde a $(email)."; \
+	else \
+		echo "Aucun usager trouve avec le courriel '$(email)' (ou il avait deja le role admin) -- verifie l'adresse."; \
+	fi
 
 clean-db: ensure-up ## Reinitialise completement la BD : supprime tout le schema puis reapplique les migrations (garde les donnees seedees intactes)
 	$(EXEC) migrate -path ./migrations -database "$(DB_URL)" down -all

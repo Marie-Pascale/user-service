@@ -114,6 +114,51 @@ func TestServiceHandler_Delete(t *testing.T) {
 	})
 }
 
+func TestServiceHandler_Update(t *testing.T) {
+	repo := newFakeServiceRepo()
+	h := NewServiceHandler(repo)
+	ctx := context.Background()
+
+	svc, plainKey, _ := domain.NewService(domain.NewID(), "orders-service", "ancienne description")
+	_ = repo.Create(ctx, svc)
+
+	t.Run("200 pour une mise a jour valide, sans affecter la cle API", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"orders-service-v2","description":"nouvelle description"}`)
+		req := httptest.NewRequest(http.MethodPut, "/services/"+svc.ID, body)
+		req.SetPathValue("id", svc.ID)
+		rec := httptest.NewRecorder()
+
+		h.Update(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+
+		var resp serviceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&resp)
+		if resp.Name != "orders-service-v2" {
+			t.Errorf("Name = %q, attendu %q", resp.Name, "orders-service-v2")
+		}
+
+		if !svc.VerifyAPIKey(plainKey) {
+			t.Error("la cle API existante devrait rester valide apres Update")
+		}
+	})
+
+	t.Run("404 pour un service inexistant", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"x","description":""}`)
+		req := httptest.NewRequest(http.MethodPut, "/services/inconnu", body)
+		req.SetPathValue("id", "inconnu")
+		rec := httptest.NewRecorder()
+
+		h.Update(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+		}
+	})
+}
+
 func TestServiceHandler_RotateAPIKey(t *testing.T) {
 	repo := newFakeServiceRepo()
 	h := NewServiceHandler(repo)

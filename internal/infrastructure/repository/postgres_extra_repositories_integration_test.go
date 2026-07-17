@@ -83,6 +83,43 @@ func TestPostgresServiceRepository_UpdateAPIKeyHash(t *testing.T) {
 	}
 }
 
+func TestPostgresServiceRepository_Update(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+	repo := NewPostgresServiceRepository(pool)
+
+	svc, plainKey, err := domain.NewService(domain.NewID(), "update-service", "avant")
+	if err != nil {
+		t.Fatalf("construction: %v", err)
+	}
+	t.Cleanup(func() { _ = repo.Delete(ctx, svc.ID) })
+	if err := repo.Create(ctx, svc); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := svc.UpdateDetails("update-service-v2", "apres"); err != nil {
+		t.Fatalf("UpdateDetails: %v", err)
+	}
+	if err := repo.Update(ctx, svc); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := repo.GetByID(ctx, svc.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.Name != "update-service-v2" || got.Description != "apres" {
+		t.Errorf("got = %+v, attendu Name=update-service-v2 Description=apres", got)
+	}
+	if !got.VerifyAPIKey(plainKey) {
+		t.Error("la cle API existante devrait rester valide apres Update")
+	}
+}
+
 // --- Permission --------------------------------------------------------
 
 func TestPostgresPermissionRepository_CreateAndListByService(t *testing.T) {
@@ -176,6 +213,40 @@ func TestPostgresRoleRepository_GrantAndRevokePermission(t *testing.T) {
 	}
 }
 
+func TestPostgresRoleRepository_Update(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+	roleRepo := NewPostgresRoleRepository(pool)
+
+	role, err := domain.NewRole(domain.NewID(), "update-role", "avant")
+	if err != nil {
+		t.Fatalf("construction: %v", err)
+	}
+	t.Cleanup(func() { _ = roleRepo.Delete(ctx, role.ID) })
+	if err := roleRepo.Create(ctx, role); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := role.UpdateDetails("update-role-v2", "apres"); err != nil {
+		t.Fatalf("UpdateDetails: %v", err)
+	}
+	if err := roleRepo.Update(ctx, role); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := roleRepo.GetByID(ctx, role.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.Name != "update-role-v2" || got.Description != "apres" {
+		t.Errorf("got = %+v, attendu Name=update-role-v2 Description=apres", got)
+	}
+}
+
 // --- Group -----------------------------------------------------------
 
 func TestPostgresGroupRepository_MembersAndRoles(t *testing.T) {
@@ -234,6 +305,40 @@ func TestPostgresGroupRepository_MembersAndRoles(t *testing.T) {
 	}
 	if len(viaMembership[0].RoleIDs) != 1 || viaMembership[0].RoleIDs[0] != role.ID {
 		t.Errorf("RoleIDs via ListByMemberUserID = %v, attendu [%q]", viaMembership[0].RoleIDs, role.ID)
+	}
+}
+
+func TestPostgresGroupRepository_Update(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+	groupRepo := NewPostgresGroupRepository(pool)
+
+	g, err := domain.NewGroup(domain.NewID(), "update-group", "avant")
+	if err != nil {
+		t.Fatalf("construction: %v", err)
+	}
+	t.Cleanup(func() { _ = groupRepo.Delete(ctx, g.ID) })
+	if err := groupRepo.Create(ctx, g); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if err := g.UpdateDetails("update-group-v2", "apres"); err != nil {
+		t.Fatalf("UpdateDetails: %v", err)
+	}
+	if err := groupRepo.Update(ctx, g); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	got, err := groupRepo.GetByID(ctx, g.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.Name != "update-group-v2" || got.Description != "apres" {
+		t.Errorf("got = %+v, attendu Name=update-group-v2 Description=apres", got)
 	}
 }
 

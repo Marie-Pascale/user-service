@@ -66,3 +66,16 @@ func (r *Role) HasPermission(permissionID string) bool {
 	}
 	return false
 }
+
+// UpdateDetails modifie le nom et la description d'un role existant, avec
+// la meme validation que NewRole. Ne touche jamais PermissionIDs -- ca
+// reste gere separement via GrantPermission/RevokePermission.
+func (r *Role) UpdateDetails(name, description string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return ErrEmptyRoleName
+	}
+	r.Name = name
+	r.Description = description
+	return nil
+}

@@ -183,7 +183,7 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
 | `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Session + `services:create` |
 | `GET` | `/services` | Liste tous les services (jamais la clé, même hachée) | Session + `services:manage` |
-| `GET` / `DELETE` | `/services/{id}` | Récupère / supprime un service | Session + `services:manage` |
+| `GET` / `PUT` / `DELETE` | `/services/{id}` | Récupère / modifie (nom, description) / supprime un service | Session + `services:manage` |
 | `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
@@ -191,12 +191,12 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` / `DELETE` | `/permissions/{id}` | Récupère / supprime une permission | Session + `permissions:manage` |
 | `POST` | `/roles` | Crée un rôle (`{"name", "description"}`) | Session + `roles:manage` |
 | `GET` | `/roles` | Liste tous les rôles | Session + `roles:manage` |
-| `GET` / `DELETE` | `/roles/{id}` | Récupère (avec ses permissions) / supprime un rôle | Session + `roles:manage` |
+| `GET` / `PUT` / `DELETE` | `/roles/{id}` | Récupère (avec permissions) / modifie (nom, description) / supprime un rôle | Session + `roles:manage` |
 | `POST` | `/roles/{id}/permissions` | Accorde une permission à un rôle (`{"permission_id"}`) | Session + `roles:manage` |
 | `DELETE` | `/roles/{id}/permissions/{permissionId}` | Révoque une permission d'un rôle | Session + `roles:manage` |
 | `POST` | `/groups` | Crée un groupe (`{"name", "description"}`) | Session + `groups:manage` |
 | `GET` | `/groups` | Liste tous les groupes | Session + `groups:manage` |
-| `GET` / `DELETE` | `/groups/{id}` | Récupère (membres + rôles) / supprime un groupe | Session + `groups:manage` |
+| `GET` / `PUT` / `DELETE` | `/groups/{id}` | Récupère (membres + rôles) / modifie (nom, description) / supprime un groupe | Session + `groups:manage` |
 | `POST` | `/groups/{id}/members` | Ajoute un membre (`{"user_id"}`) | Session + `groups:manage` |
 | `DELETE` | `/groups/{id}/members/{userId}` | Retire un membre | Session + `groups:manage` |
 | `POST` | `/groups/{id}/roles` | Assigne un rôle au groupe, hérité par tous ses membres (`{"role_id"}`) | Session + `groups:manage` |

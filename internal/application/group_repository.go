@@ -17,6 +17,10 @@ type GroupRepository interface {
 	// herites des groupes lors du calcul des permissions effectives.
 	ListByMemberUserID(ctx context.Context, userID string) ([]*domain.Group, error)
 
+	// Update persiste Name/Description uniquement -- MemberUserIDs et
+	// RoleIDs sont geres separement (AddMember/RemoveMember/AssignRole).
+	Update(ctx context.Context, g *domain.Group) error
+
 	AddMember(ctx context.Context, groupID, userID string) error
 	RemoveMember(ctx context.Context, groupID, userID string) error
 	AssignRole(ctx context.Context, groupID, roleID string) error

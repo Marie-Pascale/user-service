@@ -267,6 +267,14 @@ func (f *fakeRoleRepo) List(ctx context.Context) ([]*domain.Role, error) {
 	return roles, nil
 }
 
+func (f *fakeRoleRepo) Update(ctx context.Context, r *domain.Role) error {
+	if _, ok := f.byID[r.ID]; !ok {
+		return ErrNotFound
+	}
+	f.byID[r.ID] = r
+	return nil
+}
+
 func (f *fakeRoleRepo) GrantPermission(ctx context.Context, roleID, permissionID string) error {
 	r, ok := f.byID[roleID]
 	if !ok {
@@ -334,6 +342,14 @@ func (f *fakeGroupRepo) ListByMemberUserID(ctx context.Context, userID string) (
 		}
 	}
 	return groups, nil
+}
+
+func (f *fakeGroupRepo) Update(ctx context.Context, g *domain.Group) error {
+	if _, ok := f.byID[g.ID]; !ok {
+		return ErrNotFound
+	}
+	f.byID[g.ID] = g
+	return nil
 }
 
 func (f *fakeGroupRepo) AddMember(ctx context.Context, groupID, userID string) error {

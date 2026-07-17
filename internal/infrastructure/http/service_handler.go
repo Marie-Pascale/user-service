@@ -60,6 +60,36 @@ func (h *ServiceHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newServiceResponse(svc))
 }
 
+// Update gere PUT /services/{id} -- modifie Name/Description uniquement.
+// RotateAPIKey reste la seule facon de changer la cle API.
+func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
+	serviceID := r.PathValue("id")
+
+	var req createServiceRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		return
+	}
+
+	svc, err := h.Services.GetByID(r.Context(), serviceID)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := svc.UpdateDetails(req.Name, req.Description); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	if err := h.Services.Update(r.Context(), svc); err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, newServiceResponse(svc))
+}
+
 // List gere GET /services
 func (h *ServiceHandler) List(w http.ResponseWriter, r *http.Request) {
 	services, err := h.Services.List(r.Context())

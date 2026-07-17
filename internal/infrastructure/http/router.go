@@ -67,6 +67,7 @@ func NewRouter(
 	mux.Handle("POST /services", protected(application.PermServicesCreate, serviceHandler.Create))
 	mux.Handle("GET /services", protected(application.PermServicesManage, serviceHandler.List))
 	mux.Handle("GET /services/{id}", protected(application.PermServicesManage, serviceHandler.Get))
+	mux.Handle("PUT /services/{id}", protected(application.PermServicesManage, serviceHandler.Update))
 	mux.Handle("DELETE /services/{id}", protected(application.PermServicesManage, serviceHandler.Delete))
 	mux.Handle("POST /services/{id}/rotate-key", protected(application.PermServicesManage, serviceHandler.RotateAPIKey))
 
@@ -80,6 +81,7 @@ func NewRouter(
 	mux.Handle("POST /roles", protected(application.PermRolesManage, roleHandler.Create))
 	mux.Handle("GET /roles", protected(application.PermRolesManage, roleHandler.List))
 	mux.Handle("GET /roles/{id}", protected(application.PermRolesManage, roleHandler.Get))
+	mux.Handle("PUT /roles/{id}", protected(application.PermRolesManage, roleHandler.Update))
 	mux.Handle("DELETE /roles/{id}", protected(application.PermRolesManage, roleHandler.Delete))
 	mux.Handle("POST /roles/{id}/permissions", protected(application.PermRolesManage, roleHandler.GrantPermission))
 	mux.Handle("DELETE /roles/{id}/permissions/{permissionId}", protected(application.PermRolesManage, roleHandler.RevokePermission))
@@ -88,6 +90,7 @@ func NewRouter(
 	mux.Handle("POST /groups", protected(application.PermGroupsManage, groupHandler.Create))
 	mux.Handle("GET /groups", protected(application.PermGroupsManage, groupHandler.List))
 	mux.Handle("GET /groups/{id}", protected(application.PermGroupsManage, groupHandler.Get))
+	mux.Handle("PUT /groups/{id}", protected(application.PermGroupsManage, groupHandler.Update))
 	mux.Handle("DELETE /groups/{id}", protected(application.PermGroupsManage, groupHandler.Delete))
 	mux.Handle("POST /groups/{id}/members", protected(application.PermGroupsManage, groupHandler.AddMember))
 	mux.Handle("DELETE /groups/{id}/members/{userId}", protected(application.PermGroupsManage, groupHandler.RemoveMember))

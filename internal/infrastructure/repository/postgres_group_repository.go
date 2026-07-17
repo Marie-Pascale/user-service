@@ -144,6 +144,18 @@ func (r *PostgresGroupRepository) List(ctx context.Context) ([]*domain.Group, er
 	return groups, rows.Err()
 }
 
+func (r *PostgresGroupRepository) Update(ctx context.Context, g *domain.Group) error {
+	const query = `UPDATE groups SET name = $2, description = $3 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, g.ID, g.Name, g.Description)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
+}
+
 func (r *PostgresGroupRepository) AddMember(ctx context.Context, groupID, userID string) error {
 	const query = `
 		INSERT INTO group_members (group_id, user_id)

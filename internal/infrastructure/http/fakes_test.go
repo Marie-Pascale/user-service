@@ -235,6 +235,14 @@ func (f *fakeServiceRepo) List(ctx context.Context) ([]*domain.Service, error) {
 	return out, nil
 }
 
+func (f *fakeServiceRepo) Update(ctx context.Context, s *domain.Service) error {
+	if _, ok := f.byID[s.ID]; !ok {
+		return application.ErrNotFound
+	}
+	f.byID[s.ID] = s
+	return nil
+}
+
 func (f *fakeServiceRepo) UpdateAPIKeyHash(ctx context.Context, id, newHash string) error {
 	s, ok := f.byID[id]
 	if !ok {
@@ -355,6 +363,14 @@ func (f *fakeRoleRepo) List(ctx context.Context) ([]*domain.Role, error) {
 	return out, nil
 }
 
+func (f *fakeRoleRepo) Update(ctx context.Context, r *domain.Role) error {
+	if _, ok := f.byID[r.ID]; !ok {
+		return application.ErrNotFound
+	}
+	f.byID[r.ID] = r
+	return nil
+}
+
 func (f *fakeRoleRepo) GrantPermission(ctx context.Context, roleID, permissionID string) error {
 	r, ok := f.byID[roleID]
 	if !ok {
@@ -423,6 +439,14 @@ func (f *fakeGroupRepo) ListByMemberUserID(ctx context.Context, userID string) (
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeGroupRepo) Update(ctx context.Context, g *domain.Group) error {
+	if _, ok := f.byID[g.ID]; !ok {
+		return application.ErrNotFound
+	}
+	f.byID[g.ID] = g
+	return nil
 }
 
 func (f *fakeGroupRepo) AddMember(ctx context.Context, groupID, userID string) error {

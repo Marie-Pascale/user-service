@@ -72,3 +72,33 @@ func TestService_RotateAPIKey(t *testing.T) {
 		t.Error("la nouvelle cle devrait etre valide apres rotation")
 	}
 }
+
+func TestService_UpdateDetails(t *testing.T) {
+	t.Run("met a jour nom et description sans toucher a la cle", func(t *testing.T) {
+		svc, plainKey, _ := NewService("1", "orders-service", "ancienne description")
+		hashBefore := svc.APIKeyHash
+
+		err := svc.UpdateDetails("orders-service-v2", "nouvelle description")
+		if err != nil {
+			t.Fatalf("erreur inattendue: %v", err)
+		}
+		if svc.Name != "orders-service-v2" {
+			t.Errorf("Name = %q, attendu %q", svc.Name, "orders-service-v2")
+		}
+		if svc.APIKeyHash != hashBefore {
+			t.Error("APIKeyHash ne devrait pas changer suite a UpdateDetails")
+		}
+		if !svc.VerifyAPIKey(plainKey) {
+			t.Error("la cle existante devrait rester valide apres UpdateDetails")
+		}
+	})
+
+	t.Run("rejette un nom vide", func(t *testing.T) {
+		svc, _, _ := NewService("1", "orders-service", "")
+
+		err := svc.UpdateDetails("", "description")
+		if err != ErrEmptyServiceName {
+			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyServiceName)
+		}
+	})
+}

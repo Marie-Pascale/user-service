@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.5.0"
+  version: "0.6.0"
 
 servers:
   - url: http://localhost:8080
@@ -384,6 +384,33 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    put:
+      tags: [services]
+      summary: Modifie le nom et la description d'un service
+      description: Requiert la permission `services:manage`. Ne modifie jamais la cle API -- voir POST /services/{id}/rotate-key pour ca.
+      security:
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateServiceRequest"
+      responses:
+        "200":
+          description: Service mis a jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Service"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       tags: [services]
       summary: Supprime un service
@@ -599,6 +626,33 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+    put:
+      tags: [rbac]
+      summary: Modifie le nom et la description d'un role
+      description: Requiert la permission `roles:manage`. Ne modifie jamais PermissionIDs -- voir POST/DELETE /roles/{id}/permissions pour ca.
+      security:
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleRequest"
+      responses:
+        "200":
+          description: Role mis a jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
     delete:
       tags: [rbac]
       summary: Supprime un role
@@ -745,6 +799,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Group"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [rbac]
+      summary: Modifie le nom et la description d'un groupe
+      description: Requiert la permission `groups:manage`. Ne modifie jamais les membres ni les roles -- voir les sous-routes /members et /roles pour ca.
+      security:
+        - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupRequest"
+      responses:
+        "200":
+          description: Groupe mis a jour
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":

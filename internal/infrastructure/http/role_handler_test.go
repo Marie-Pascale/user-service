@@ -82,6 +82,60 @@ func TestRoleHandler_GrantAndRevokePermission(t *testing.T) {
 	})
 }
 
+func TestRoleHandler_Update(t *testing.T) {
+	roles := newFakeRoleRepo()
+	h := NewRoleHandler(roles)
+	ctx := context.Background()
+
+	role, _ := domain.NewRole(domain.NewID(), "support-agent", "ancienne description")
+	_ = roles.Create(ctx, role)
+
+	t.Run("200 pour une mise a jour valide", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"support-agent-senior","description":"nouvelle description"}`)
+		req := httptest.NewRequest(http.MethodPut, "/roles/"+role.ID, body)
+		req.SetPathValue("id", role.ID)
+		rec := httptest.NewRecorder()
+
+		h.Update(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+
+		var resp roleResponse
+		_ = json.NewDecoder(rec.Body).Decode(&resp)
+		if resp.Name != "support-agent-senior" {
+			t.Errorf("Name = %q, attendu %q", resp.Name, "support-agent-senior")
+		}
+	})
+
+	t.Run("400 pour un nom vide", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"","description":""}`)
+		req := httptest.NewRequest(http.MethodPut, "/roles/"+role.ID, body)
+		req.SetPathValue("id", role.ID)
+		rec := httptest.NewRecorder()
+
+		h.Update(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("404 pour un role inexistant", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"x","description":""}`)
+		req := httptest.NewRequest(http.MethodPut, "/roles/inconnu", body)
+		req.SetPathValue("id", "inconnu")
+		rec := httptest.NewRecorder()
+
+		h.Update(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+		}
+	})
+}
+
 func TestRoleHandler_List(t *testing.T) {
 	roles := newFakeRoleRepo()
 	h := NewRoleHandler(roles)

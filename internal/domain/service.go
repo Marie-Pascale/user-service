@@ -61,3 +61,15 @@ func (s *Service) RotateAPIKey() (plainAPIKey string, err error) {
 	s.APIKeyHash = HashToken(plainAPIKey)
 	return plainAPIKey, nil
 }
+
+// UpdateDetails modifie le nom et la description d'un service existant,
+// avec la meme validation que NewService. Ne touche jamais APIKeyHash --
+// gere separement via RotateAPIKey.
+func (s *Service) UpdateDetails(name, description string) error {
+	if name == "" {
+		return ErrEmptyServiceName
+	}
+	s.Name = name
+	s.Description = description
+	return nil
+}

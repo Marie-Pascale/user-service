@@ -83,6 +83,18 @@ func (r *PostgresServiceRepository) List(ctx context.Context) ([]*domain.Service
 	return services, rows.Err()
 }
 
+func (r *PostgresServiceRepository) Update(ctx context.Context, s *domain.Service) error {
+	const query = `UPDATE services SET name = $2, description = $3 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, s.ID, s.Name, s.Description)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
+}
+
 func (r *PostgresServiceRepository) UpdateAPIKeyHash(ctx context.Context, id, newAPIKeyHash string) error {
 	const query = `UPDATE services SET api_key_hash = $2 WHERE id = $1`
 	tag, err := r.pool.Exec(ctx, query, id, newAPIKeyHash)

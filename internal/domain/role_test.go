@@ -40,3 +40,36 @@ func TestRole_GrantAndRevokePermission(t *testing.T) {
 		t.Error("le role ne devrait plus avoir la permission apres RevokePermission")
 	}
 }
+
+func TestRole_UpdateDetails(t *testing.T) {
+	t.Run("met a jour nom et description", func(t *testing.T) {
+		r, _ := NewRole("1", "support-agent", "ancienne description")
+		r.GrantPermission("perm-1") // pour verifier que ca survit a la mise a jour
+
+		err := r.UpdateDetails("support-agent-senior", "nouvelle description")
+		if err != nil {
+			t.Fatalf("erreur inattendue: %v", err)
+		}
+		if r.Name != "support-agent-senior" {
+			t.Errorf("Name = %q, attendu %q", r.Name, "support-agent-senior")
+		}
+		if r.Description != "nouvelle description" {
+			t.Errorf("Description = %q, attendu %q", r.Description, "nouvelle description")
+		}
+		if len(r.PermissionIDs) != 1 {
+			t.Error("PermissionIDs ne devrait pas etre affecte par UpdateDetails")
+		}
+	})
+
+	t.Run("rejette un nom vide", func(t *testing.T) {
+		r, _ := NewRole("1", "support-agent", "")
+
+		err := r.UpdateDetails("", "description")
+		if err != ErrEmptyRoleName {
+			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyRoleName)
+		}
+		if r.Name != "support-agent" {
+			t.Error("Name ne devrait pas avoir change apres une validation echouee")
+		}
+	})
+}
