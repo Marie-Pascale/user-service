@@ -186,6 +186,7 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` / `PUT` / `DELETE` | `/services/{id}` | Récupère / modifie (nom, description) / supprime un service | Session + `services:manage` |
 | `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
+| `GET` | `/users/{id}/permissions/check?permission=...` | Vérifie **une** permission précise (`{"allowed": true/false}`) | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions/self` | Un service enregistre lui-même une permission (`{"key", "description"}`), idempotent | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
 | `GET` | `/permissions?service_id=...` | Liste les permissions d'un service | Session + `permissions:manage` |
@@ -256,6 +257,11 @@ curl -X POST localhost:8080/permissions/self -H "X-API-Key: a1b2c3..." -d '{"key
 # 7. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
+
+# 8. Ou verifier directement UNE permission precise (plus simple pour une
+# validation ponctuelle avant d'executer une action)
+curl "localhost:8080/users/<user-id>/permissions/check?permission=orders:read" -H "X-API-Key: a1b2c3..."
+# -> {"user_id":"...", "service_id":"...", "permission":"orders:read", "allowed":true}
 ```
 
 ## CORS (pour un frontend)

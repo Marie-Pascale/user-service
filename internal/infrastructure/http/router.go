@@ -102,6 +102,7 @@ func NewRouter(
 
 	// Protegee par cle API (services tiers, pas des usagers).
 	mux.Handle("GET /users/{id}/permissions", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.ListForUser)))
+	mux.Handle("GET /users/{id}/permissions/check", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.CheckForUser)))
 
 	return mux
 }

@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.7.0"
+  version: "0.8.0"
 
 servers:
   - url: http://localhost:8080
@@ -242,6 +242,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PermissionsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users/{id}/permissions/check:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [permissions]
+      summary: Verifie si un usager a UNE permission precise, pour le service authentifie
+      description: >
+        Raccourci par rapport a GET /users/{id}/permissions : plutot que de
+        recuperer toute la liste et chercher soi-meme, un service demande
+        directement "cet usager a-t-il CETTE permission ?" -- reponse
+        booleenne. Utile pour une verification synchrone avant d'executer
+        une action.
+
+
+        Memes garanties que GET /users/{id}/permissions : l'ID du service
+        vient EXCLUSIVEMENT de la cle API, jamais de la requete -- un
+        service ne peut donc jamais verifier une permission au nom d'un
+        AUTRE service.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: permission
+          in: query
+          required: true
+          description: La cle de permission a verifier (ex. "orders:read").
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultat de la verification (allowed peut etre true ou false -- ce n'est pas une erreur)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckPermissionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1109,6 +1150,21 @@ components:
           items:
             type: string
           example: ["orders:read", "orders:write"]
+
+    CheckPermissionResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        permission:
+          type: string
+          example: "orders:read"
+        allowed:
+          type: boolean
 
     Error:
       type: object
