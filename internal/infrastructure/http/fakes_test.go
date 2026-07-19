@@ -519,6 +519,15 @@ func (f *fakePermissionRepo) ListByServiceID(ctx context.Context, serviceID stri
 	return out, nil
 }
 
+func (f *fakePermissionRepo) GetByServiceIDAndKey(ctx context.Context, serviceID, key string) (*domain.Permission, error) {
+	for _, p := range f.byID {
+		if p.ServiceID == serviceID && p.Key == key {
+			return p, nil
+		}
+	}
+	return nil, application.ErrNotFound
+}
+
 func (f *fakePermissionRepo) ListByIDs(ctx context.Context, ids []string) ([]*domain.Permission, error) {
 	out := []*domain.Permission{}
 	for _, id := range ids {

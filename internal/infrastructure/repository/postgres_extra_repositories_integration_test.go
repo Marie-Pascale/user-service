@@ -157,6 +157,47 @@ func TestPostgresPermissionRepository_CreateAndListByService(t *testing.T) {
 	}
 }
 
+func TestPostgresPermissionRepository_GetByServiceIDAndKey(t *testing.T) {
+	pool, err := NewPool(context.Background(), ConfigFromEnv())
+	if err != nil {
+		t.Fatalf("connexion: %v", err)
+	}
+	defer pool.Close()
+	ctx := context.Background()
+
+	svcRepo := NewPostgresServiceRepository(pool)
+	permRepo := NewPostgresPermissionRepository(pool)
+
+	svc, _, _ := domain.NewService(domain.NewID(), "self-register-service", "")
+	if err := svcRepo.Create(ctx, svc); err != nil {
+		t.Fatalf("creation du service: %v", err)
+	}
+	t.Cleanup(func() { _ = svcRepo.Delete(ctx, svc.ID) })
+
+	p, _ := domain.NewPermission(domain.NewID(), svc.ID, "orders:read", "")
+	if err := permRepo.Create(ctx, p); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { _ = permRepo.Delete(ctx, p.ID) })
+
+	t.Run("retrouve une permission existante", func(t *testing.T) {
+		got, err := permRepo.GetByServiceIDAndKey(ctx, svc.ID, "orders:read")
+		if err != nil {
+			t.Fatalf("GetByServiceIDAndKey: %v", err)
+		}
+		if got.ID != p.ID {
+			t.Errorf("ID = %q, attendu %q", got.ID, p.ID)
+		}
+	})
+
+	t.Run("ErrNotFound pour une cle inexistante", func(t *testing.T) {
+		_, err := permRepo.GetByServiceIDAndKey(ctx, svc.ID, "orders:write")
+		if !errors.Is(err, application.ErrNotFound) {
+			t.Errorf("erreur = %v, attendu %v", err, application.ErrNotFound)
+		}
+	})
+}
+
 // --- Role ----------------------------------------------------------------
 
 func TestPostgresRoleRepository_GrantAndRevokePermission(t *testing.T) {

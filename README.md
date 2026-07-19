@@ -186,6 +186,7 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` / `PUT` / `DELETE` | `/services/{id}` | Récupère / modifie (nom, description) / supprime un service | Session + `services:manage` |
 | `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
+| `POST` | `/permissions/self` | Un service enregistre lui-même une permission (`{"key", "description"}`), idempotent | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
 | `GET` | `/permissions?service_id=...` | Liste les permissions d'un service | Session + `permissions:manage` |
 | `GET` / `DELETE` | `/permissions/{id}` | Récupère / supprime une permission | Session + `permissions:manage` |
@@ -247,7 +248,12 @@ curl -X POST localhost:8080/services/<service-id>/rotate-key -H "Authorization: 
 
 # --- Cote services tiers (mecanisme separe, cle API) ---
 
-# 6. Utiliser cette cle pour consulter les permissions d'un usager
+# 6. Le service declare lui-meme ses permissions (typiquement a son demarrage)
+curl -X POST localhost:8080/permissions/self -H "X-API-Key: a1b2c3..." -d '{"key":"orders:read","description":"lire les commandes"}'
+# -> {"id":"...", "service_id":"...", "key":"orders:read", "description":"..."}
+# Rappeler la meme commande ne cree pas de doublon -- retourne la permission existante (200).
+
+# 7. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
 ```

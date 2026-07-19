@@ -57,6 +57,23 @@ func (r *PostgresPermissionRepository) ListByServiceID(ctx context.Context, serv
 	return r.scanMany(ctx, query, serviceID)
 }
 
+func (r *PostgresPermissionRepository) GetByServiceIDAndKey(ctx context.Context, serviceID, key string) (*domain.Permission, error) {
+	const query = `
+		SELECT id, service_id, key, description
+		FROM permissions
+		WHERE service_id = $1 AND key = $2
+	`
+	var p domain.Permission
+	err := r.pool.QueryRow(ctx, query, serviceID, key).Scan(&p.ID, &p.ServiceID, &p.Key, &p.Description)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, application.ErrNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
 func (r *PostgresPermissionRepository) ListByIDs(ctx context.Context, ids []string) ([]*domain.Permission, error) {
 	if len(ids) == 0 {
 		return []*domain.Permission{}, nil

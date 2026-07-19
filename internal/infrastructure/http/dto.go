@@ -154,6 +154,15 @@ type createPermissionRequest struct {
 	Description string `json:"description"`
 }
 
+// registerPermissionRequest n'a PAS de champ ServiceID, contrairement a
+// createPermissionRequest -- pour RegisterSelf, le service est TOUJOURS
+// celui authentifie par la cle API (voir PermissionHandler.RegisterSelf),
+// jamais fourni par le client.
+type registerPermissionRequest struct {
+	Key         string `json:"key"`
+	Description string `json:"description"`
+}
+
 // --- Role --------------------------------------------------------------
 
 type roleResponse struct {

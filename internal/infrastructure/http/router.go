@@ -77,6 +77,10 @@ func NewRouter(
 	mux.Handle("GET /permissions/{id}", protected(application.PermPermissionsManage, permissionHandler.Get))
 	mux.Handle("DELETE /permissions/{id}", protected(application.PermPermissionsManage, permissionHandler.Delete))
 
+	// Auto-enregistrement par un service tiers -- protegee par cle API
+	// (pas par session usager), comme GET /users/{id}/permissions plus bas.
+	mux.Handle("POST /permissions/self", serviceAuth.Authenticate(http.HandlerFunc(permissionHandler.RegisterSelf)))
+
 	// Roles
 	mux.Handle("POST /roles", protected(application.PermRolesManage, roleHandler.Create))
 	mux.Handle("GET /roles", protected(application.PermRolesManage, roleHandler.List))

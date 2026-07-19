@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.6.0"
+  version: "0.7.0"
 
 servers:
   - url: http://localhost:8080
@@ -512,6 +512,48 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+
+  /permissions/self:
+    post:
+      tags: [permissions]
+      summary: Un service tiers enregistre lui-meme une de ses permissions
+      description: >
+        Protegee par cle API (X-API-Key), PAS par session usager -- un
+        service de l'ecosysteme declare ses propres permissions sans
+        intervention d'un admin humain. L'ID du service vient
+        EXCLUSIVEMENT de la cle API fournie, jamais du corps de la requete
+        -- un service ne peut donc jamais enregistrer une permission au
+        nom d'un autre service.
+
+
+        Idempotente : appeler deux fois avec la meme cle retourne la
+        permission existante (200) plutot que d'echouer -- pratique pour
+        un enregistrement automatique a chaque demarrage du service.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterPermissionRequest"
+      responses:
+        "200":
+          description: La permission existait deja pour ce service -- retournee telle quelle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "201":
+          description: Permission creee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Permission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /permissions/{id}:
     parameters:
@@ -1211,6 +1253,16 @@ components:
         service_id:
           type: string
           format: uuid
+        key:
+          type: string
+        description:
+          type: string
+
+    RegisterPermissionRequest:
+      type: object
+      required: [key]
+      description: Pas de service_id -- toujours celui du service authentifie par cle API.
+      properties:
         key:
           type: string
         description:
