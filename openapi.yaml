@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.8.0"
+  version: "0.9.0"
 
 servers:
   - url: http://localhost:8080
@@ -219,6 +219,37 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users/{id}/profile:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [permissions]
+      summary: Informations de base d'un usager, pour le service authentifie
+      description: >
+        Reservee aux services tiers de l'ecosysteme, authentifies par cle API.
+        Retourne DELIBEREMENT moins de champs que GET /me ou la version
+        usager de GET /users/{id} : uniquement id/name/email/status --
+        jamais role_ids/permission_ids, des details RBAC internes a ce
+        service sans interet pour un autre service.
+
+
+        Meme modele de confiance que GET /users/{id}/permissions :
+        n'importe quel service avec une cle API valide peut consulter,
+        sans permission additionnelle.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Informations de base de l'usager
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserBasicInfo"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -1116,6 +1147,23 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    UserBasicInfo:
+      type: object
+      description: Version restreinte de User, pour la consultation par les services tiers -- jamais role_ids/permission_ids.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Alice Tremblay
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [active, suspended]
 
     AuthMethod:
       type: object

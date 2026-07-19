@@ -173,6 +173,73 @@ func TestUserHandler_Get(t *testing.T) {
 	})
 }
 
+func TestUserHandler_GetBasicInfo(t *testing.T) {
+	t.Run("200 avec seulement id/name/email/status", func(t *testing.T) {
+		h, repo := newTestUserHandler()
+		u := mustNewUser(t, "Alice", "alice@example.com")
+		u.AssignRole("role-secret") // pour verifier que ca NE fuite PAS dans la reponse
+		_ = repo.Create(context.Background(), u)
+
+		svc, _, _ := domain.NewService(domain.NewID(), "orders-service", "")
+
+		req := httptest.NewRequest(http.MethodGet, "/users/"+u.ID+"/profile", nil)
+		req.SetPathValue("id", u.ID)
+		req = req.WithContext(withTestService(req.Context(), svc))
+		rec := httptest.NewRecorder()
+
+		h.GetBasicInfo(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+
+		body := rec.Body.String()
+		if strings.Contains(body, "role_ids") || strings.Contains(body, "role-secret") {
+			t.Errorf("la reponse ne devrait jamais contenir RoleIDs, corps: %s", body)
+		}
+
+		var resp userBasicInfoResponse
+		if err := json.NewDecoder(strings.NewReader(body)).Decode(&resp); err != nil {
+			t.Fatalf("decodage: %v", err)
+		}
+		if resp.Email != "alice@example.com" || resp.Name != "Alice" {
+			t.Errorf("resp = %+v, attendu name=Alice email=alice@example.com", resp)
+		}
+	})
+
+	t.Run("401 sans service authentifie dans le contexte", func(t *testing.T) {
+		h, repo := newTestUserHandler()
+		u := mustNewUser(t, "Alice", "alice@example.com")
+		_ = repo.Create(context.Background(), u)
+
+		req := httptest.NewRequest(http.MethodGet, "/users/"+u.ID+"/profile", nil)
+		req.SetPathValue("id", u.ID)
+		rec := httptest.NewRecorder()
+
+		h.GetBasicInfo(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+		}
+	})
+
+	t.Run("404 pour un usager inexistant", func(t *testing.T) {
+		h, _ := newTestUserHandler()
+		svc, _, _ := domain.NewService(domain.NewID(), "orders-service", "")
+
+		req := httptest.NewRequest(http.MethodGet, "/users/inconnu/profile", nil)
+		req.SetPathValue("id", "inconnu")
+		req = req.WithContext(withTestService(req.Context(), svc))
+		rec := httptest.NewRecorder()
+
+		h.GetBasicInfo(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+		}
+	})
+}
+
 func TestUserHandler_Delete(t *testing.T) {
 	t.Run("204 pour une suppression reussie", func(t *testing.T) {
 		h, repo := newTestUserHandler()

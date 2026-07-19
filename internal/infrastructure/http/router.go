@@ -101,6 +101,7 @@ func NewRouter(
 	mux.Handle("POST /groups/{id}/roles", protected(application.PermGroupsManage, groupHandler.AssignRole))
 
 	// Protegee par cle API (services tiers, pas des usagers).
+	mux.Handle("GET /users/{id}/profile", serviceAuth.Authenticate(http.HandlerFunc(userHandler.GetBasicInfo)))
 	mux.Handle("GET /users/{id}/permissions", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.ListForUser)))
 	mux.Handle("GET /users/{id}/permissions/check", serviceAuth.Authenticate(http.HandlerFunc(permissionsHandler.CheckForUser)))
 

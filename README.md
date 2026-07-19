@@ -185,6 +185,7 @@ Cette spec documente l'état **réel actuel** des routes (y compris lesquelles s
 | `GET` | `/services` | Liste tous les services (jamais la clé, même hachée) | Session + `services:manage` |
 | `GET` / `PUT` / `DELETE` | `/services/{id}` | Récupère / modifie (nom, description) / supprime un service | Session + `services:manage` |
 | `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
+| `GET` | `/users/{id}/profile` | Infos de base d'un usager (`id`, `name`, `email`, `status`), **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 | `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
 | `GET` | `/users/{id}/permissions/check?permission=...` | Vérifie **une** permission précise (`{"allowed": true/false}`) | **Clé API** (`X-API-Key`) |
 | `POST` | `/permissions/self` | Un service enregistre lui-même une permission (`{"key", "description"}`), idempotent | **Clé API** (`X-API-Key`) |
@@ -254,11 +255,15 @@ curl -X POST localhost:8080/permissions/self -H "X-API-Key: a1b2c3..." -d '{"key
 # -> {"id":"...", "service_id":"...", "key":"orders:read", "description":"..."}
 # Rappeler la meme commande ne cree pas de doublon -- retourne la permission existante (200).
 
-# 7. Utiliser cette cle pour consulter les permissions d'un usager
+# 7. Consulter les infos de base d'un usager (jamais role_ids/permission_ids)
+curl localhost:8080/users/<user-id>/profile -H "X-API-Key: a1b2c3..."
+# -> {"id":"...", "name":"Alice", "email":"alice@example.com", "status":"active"}
+
+# 8. Utiliser cette cle pour consulter les permissions d'un usager
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
 
-# 8. Ou verifier directement UNE permission precise (plus simple pour une
+# 9. Ou verifier directement UNE permission precise (plus simple pour une
 # validation ponctuelle avant d'executer une action)
 curl "localhost:8080/users/<user-id>/permissions/check?permission=orders:read" -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permission":"orders:read", "allowed":true}

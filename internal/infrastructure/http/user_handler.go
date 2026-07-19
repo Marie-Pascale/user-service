@@ -149,3 +149,33 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, newUserResponse(u))
 }
+
+// GetBasicInfo gere GET /users/{id}/profile -- protegee par
+// ServiceAuthMiddleware (cle API), PAS par session usager. Permet a un
+// service tiers de l'ecosysteme de lire les informations de base d'un
+// usager (id/name/email/status) pour son propre usage.
+//
+// Retourne DELIBEREMENT moins de champs que Get/Me (voir
+// userBasicInfoResponse) : RoleIDs/PermissionIDs sont des details RBAC
+// internes a ce service, sans interet pour un autre service.
+//
+// Meme modele de confiance que GET /users/{id}/permissions : n'importe
+// quel service avec une cle API valide peut consulter, sans permission
+// additionnelle -- a durcir plus tard (une permission dediee, ex.
+// "users:profile:read") si le besoin de restreindre davantage se presente.
+func (h *UserHandler) GetBasicInfo(w http.ResponseWriter, r *http.Request) {
+	if _, ok := ServiceFromContext(r.Context()); !ok {
+		// Ne devrait jamais arriver si les routes sont cablees correctement
+		// (voir router.go) -- le middleware doit toujours s'executer avant.
+		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthenticated service"})
+		return
+	}
+
+	u, err := h.Users.GetByID(r.Context(), r.PathValue("id"))
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, newUserBasicInfoResponse(u))
+}

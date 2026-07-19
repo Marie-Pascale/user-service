@@ -37,6 +37,22 @@ func newUserResponse(u *domain.User) userResponse {
 	}
 }
 
+// userBasicInfoResponse expose SEULEMENT id/name/email/status -- utilisee
+// pour la consultation par les services tiers (voir
+// UserHandler.GetBasicInfo). Delibrement plus restreinte que userResponse :
+// RoleIDs/PermissionIDs sont des details RBAC internes a ce service, sans
+// interet ni raison d'etre exposes a un autre service de l'ecosysteme.
+type userBasicInfoResponse struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Status string `json:"status"`
+}
+
+func newUserBasicInfoResponse(u *domain.User) userBasicInfoResponse {
+	return userBasicInfoResponse{ID: u.ID, Name: u.Name, Email: u.Email, Status: string(u.Status)}
+}
+
 // authMethodResponse n'expose JAMAIS PasswordHash -- meme hache, il n'a
 // rien a faire dans une reponse HTTP.
 type authMethodResponse struct {
