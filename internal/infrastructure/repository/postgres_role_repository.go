@@ -23,18 +23,18 @@ var _ application.RoleRepository = (*PostgresRoleRepository)(nil)
 
 func (r *PostgresRoleRepository) Create(ctx context.Context, role *domain.Role) error {
 	const query = `
-		INSERT INTO roles (id, name, description)
-		VALUES ($1, $2, $3)
+		INSERT INTO roles (id, name, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err := r.pool.Exec(ctx, query, role.ID, role.Name, role.Description)
+	_, err := r.pool.Exec(ctx, query, role.ID, role.Name, role.Description, role.CreatedAt, role.UpdatedAt)
 	return err
 }
 
 func (r *PostgresRoleRepository) GetByID(ctx context.Context, id string) (*domain.Role, error) {
-	const query = `SELECT id, name, description FROM roles WHERE id = $1`
+	const query = `SELECT id, name, description, created_at, updated_at FROM roles WHERE id = $1`
 
 	var role domain.Role
-	err := r.pool.QueryRow(ctx, query, id).Scan(&role.ID, &role.Name, &role.Description)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, application.ErrNotFound
@@ -70,7 +70,7 @@ func (r *PostgresRoleRepository) permissionIDsFor(ctx context.Context, roleID st
 }
 
 func (r *PostgresRoleRepository) List(ctx context.Context) ([]*domain.Role, error) {
-	const query = `SELECT id, name, description FROM roles ORDER BY name ASC`
+	const query = `SELECT id, name, description, created_at, updated_at FROM roles ORDER BY name ASC`
 
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
@@ -84,7 +84,7 @@ func (r *PostgresRoleRepository) List(ctx context.Context) ([]*domain.Role, erro
 	roles := []*domain.Role{}
 	for rows.Next() {
 		var role domain.Role
-		if err := rows.Scan(&role.ID, &role.Name, &role.Description); err != nil {
+		if err := rows.Scan(&role.ID, &role.Name, &role.Description, &role.CreatedAt, &role.UpdatedAt); err != nil {
 			return nil, err
 		}
 		roles = append(roles, &role)
@@ -93,8 +93,8 @@ func (r *PostgresRoleRepository) List(ctx context.Context) ([]*domain.Role, erro
 }
 
 func (r *PostgresRoleRepository) Update(ctx context.Context, role *domain.Role) error {
-	const query = `UPDATE roles SET name = $2, description = $3 WHERE id = $1`
-	tag, err := r.pool.Exec(ctx, query, role.ID, role.Name, role.Description)
+	const query = `UPDATE roles SET name = $2, description = $3, updated_at = $4 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, role.ID, role.Name, role.Description, role.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -104,19 +104,38 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, role *domain.Role) 
 	return nil
 }
 
+// GrantPermission insere dans la table de jonction ET met a jour
+// roles.updated_at -- sans ca, updated_at resterait perime en base par
+// rapport a la mutation deja faite en memoire par domain.Role.GrantPermission.
 func (r *PostgresRoleRepository) GrantPermission(ctx context.Context, roleID, permissionID string) error {
-	const query = `
+	const insertQuery = `
 		INSERT INTO role_permissions (role_id, permission_id)
 		VALUES ($1, $2)
 		ON CONFLICT DO NOTHING
 	`
-	_, err := r.pool.Exec(ctx, query, roleID, permissionID)
-	return err
+	if _, err := r.pool.Exec(ctx, insertQuery, roleID, permissionID); err != nil {
+		return err
+	}
+	return r.touch(ctx, roleID)
 }
 
+// RevokePermission -- meme remarque que GrantPermission au sujet de updated_at.
 func (r *PostgresRoleRepository) RevokePermission(ctx context.Context, roleID, permissionID string) error {
-	const query = `DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2`
-	_, err := r.pool.Exec(ctx, query, roleID, permissionID)
+	const deleteQuery = `DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2`
+	if _, err := r.pool.Exec(ctx, deleteQuery, roleID, permissionID); err != nil {
+		return err
+	}
+	return r.touch(ctx, roleID)
+}
+
+// touch met a jour updated_at a l'instant present. N'echoue pas si le
+// role n'existe plus (RowsAffected == 0 ignore) -- GrantPermission/
+// RevokePermission ont deja reussi leur propre operation a ce stade, pas
+// la peine de faire echouer toute l'operation pour cette seule mise a jour
+// de metadonnee.
+func (r *PostgresRoleRepository) touch(ctx context.Context, roleID string) error {
+	const query = `UPDATE roles SET updated_at = now() WHERE id = $1`
+	_, err := r.pool.Exec(ctx, query, roleID)
 	return err
 }
 

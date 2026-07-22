@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestNewRole(t *testing.T) {
 	t.Run("cree un role valide", func(t *testing.T) {
@@ -10,6 +13,12 @@ func TestNewRole(t *testing.T) {
 		}
 		if len(r.PermissionIDs) != 0 {
 			t.Errorf("un nouveau role ne devrait avoir aucune permission, a: %v", r.PermissionIDs)
+		}
+		if r.CreatedAt.IsZero() {
+			t.Error("CreatedAt ne devrait pas etre a zero")
+		}
+		if r.CreatedAt != r.UpdatedAt {
+			t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
 		}
 	})
 
@@ -23,10 +32,15 @@ func TestNewRole(t *testing.T) {
 
 func TestRole_GrantAndRevokePermission(t *testing.T) {
 	r, _ := NewRole("1", "support-agent", "")
+	originalUpdatedAt := r.UpdatedAt
 
+	time.Sleep(time.Millisecond)
 	r.GrantPermission("perm-orders-read")
 	if !r.HasPermission("perm-orders-read") {
 		t.Error("le role devrait avoir la permission apres GrantPermission")
+	}
+	if !r.UpdatedAt.After(originalUpdatedAt) {
+		t.Error("UpdatedAt devrait avancer apres GrantPermission")
 	}
 
 	// Accorder deux fois ne doit pas creer de doublon.

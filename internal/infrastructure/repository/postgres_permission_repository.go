@@ -23,33 +23,25 @@ var _ application.PermissionRepository = (*PostgresPermissionRepository)(nil)
 
 func (r *PostgresPermissionRepository) Create(ctx context.Context, p *domain.Permission) error {
 	const query = `
-		INSERT INTO permissions (id, service_id, key, description)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO permissions (id, service_id, key, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	_, err := r.pool.Exec(ctx, query, p.ID, p.ServiceID, p.Key, p.Description)
+	_, err := r.pool.Exec(ctx, query, p.ID, p.ServiceID, p.Key, p.Description, p.CreatedAt, p.UpdatedAt)
 	return err
 }
 
 func (r *PostgresPermissionRepository) GetByID(ctx context.Context, id string) (*domain.Permission, error) {
 	const query = `
-		SELECT id, service_id, key, description
+		SELECT id, service_id, key, description, created_at, updated_at
 		FROM permissions
 		WHERE id = $1
 	`
-	var p domain.Permission
-	err := r.pool.QueryRow(ctx, query, id).Scan(&p.ID, &p.ServiceID, &p.Key, &p.Description)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, application.ErrNotFound
-		}
-		return nil, err
-	}
-	return &p, nil
+	return r.scanOne(ctx, query, id)
 }
 
 func (r *PostgresPermissionRepository) ListByServiceID(ctx context.Context, serviceID string) ([]*domain.Permission, error) {
 	const query = `
-		SELECT id, service_id, key, description
+		SELECT id, service_id, key, description, created_at, updated_at
 		FROM permissions
 		WHERE service_id = $1
 		ORDER BY key ASC
@@ -59,19 +51,11 @@ func (r *PostgresPermissionRepository) ListByServiceID(ctx context.Context, serv
 
 func (r *PostgresPermissionRepository) GetByServiceIDAndKey(ctx context.Context, serviceID, key string) (*domain.Permission, error) {
 	const query = `
-		SELECT id, service_id, key, description
+		SELECT id, service_id, key, description, created_at, updated_at
 		FROM permissions
 		WHERE service_id = $1 AND key = $2
 	`
-	var p domain.Permission
-	err := r.pool.QueryRow(ctx, query, serviceID, key).Scan(&p.ID, &p.ServiceID, &p.Key, &p.Description)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, application.ErrNotFound
-		}
-		return nil, err
-	}
-	return &p, nil
+	return r.scanOne(ctx, query, serviceID, key)
 }
 
 func (r *PostgresPermissionRepository) ListByIDs(ctx context.Context, ids []string) ([]*domain.Permission, error) {
@@ -79,11 +63,25 @@ func (r *PostgresPermissionRepository) ListByIDs(ctx context.Context, ids []stri
 		return []*domain.Permission{}, nil
 	}
 	const query = `
-		SELECT id, service_id, key, description
+		SELECT id, service_id, key, description, created_at, updated_at
 		FROM permissions
 		WHERE id = ANY($1)
 	`
 	return r.scanMany(ctx, query, ids)
+}
+
+func (r *PostgresPermissionRepository) scanOne(ctx context.Context, query string, args ...any) (*domain.Permission, error) {
+	var p domain.Permission
+	err := r.pool.QueryRow(ctx, query, args...).Scan(
+		&p.ID, &p.ServiceID, &p.Key, &p.Description, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, application.ErrNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
 }
 
 func (r *PostgresPermissionRepository) scanMany(ctx context.Context, query string, arg any) ([]*domain.Permission, error) {
@@ -96,7 +94,7 @@ func (r *PostgresPermissionRepository) scanMany(ctx context.Context, query strin
 	permissions := []*domain.Permission{}
 	for rows.Next() {
 		var p domain.Permission
-		if err := rows.Scan(&p.ID, &p.ServiceID, &p.Key, &p.Description); err != nil {
+		if err := rows.Scan(&p.ID, &p.ServiceID, &p.Key, &p.Description, &p.CreatedAt, &p.UpdatedAt); err != nil {
 			return nil, err
 		}
 		permissions = append(permissions, &p)

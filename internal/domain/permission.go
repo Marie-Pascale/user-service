@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 var (
@@ -22,6 +23,8 @@ type Permission struct {
 	ServiceID   string
 	Key         string
 	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NewPermission cree une permission valide.
@@ -35,10 +38,13 @@ func NewPermission(id, serviceID, key, description string) (*Permission, error) 
 		return nil, ErrEmptyPermissionKey
 	}
 
+	now := time.Now().UTC()
 	return &Permission{
 		ID:          id,
 		ServiceID:   serviceID,
 		Key:         key,
 		Description: description,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}, nil
 }

@@ -23,18 +23,18 @@ var _ application.GroupRepository = (*PostgresGroupRepository)(nil)
 
 func (r *PostgresGroupRepository) Create(ctx context.Context, g *domain.Group) error {
 	const query = `
-		INSERT INTO groups (id, name, description)
-		VALUES ($1, $2, $3)
+		INSERT INTO groups (id, name, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
 	`
-	_, err := r.pool.Exec(ctx, query, g.ID, g.Name, g.Description)
+	_, err := r.pool.Exec(ctx, query, g.ID, g.Name, g.Description, g.CreatedAt, g.UpdatedAt)
 	return err
 }
 
 func (r *PostgresGroupRepository) GetByID(ctx context.Context, id string) (*domain.Group, error) {
-	const query = `SELECT id, name, description FROM groups WHERE id = $1`
+	const query = `SELECT id, name, description, created_at, updated_at FROM groups WHERE id = $1`
 
 	var g domain.Group
-	err := r.pool.QueryRow(ctx, query, id).Scan(&g.ID, &g.Name, &g.Description)
+	err := r.pool.QueryRow(ctx, query, id).Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, application.ErrNotFound
@@ -72,7 +72,7 @@ func (r *PostgresGroupRepository) hydrate(ctx context.Context, g *domain.Group) 
 // leurs roles herites deja charges -- utilise par AuthorizationService.
 func (r *PostgresGroupRepository) ListByMemberUserID(ctx context.Context, userID string) ([]*domain.Group, error) {
 	const query = `
-		SELECT g.id, g.name, g.description
+		SELECT g.id, g.name, g.description, g.created_at, g.updated_at
 		FROM groups g
 		JOIN group_members gm ON gm.group_id = g.id
 		WHERE gm.user_id = $1
@@ -85,7 +85,7 @@ func (r *PostgresGroupRepository) ListByMemberUserID(ctx context.Context, userID
 	groups := []*domain.Group{}
 	for rows.Next() {
 		var g domain.Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Description); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -125,7 +125,7 @@ func (r *PostgresGroupRepository) idsFor(ctx context.Context, table, column, gro
 }
 
 func (r *PostgresGroupRepository) List(ctx context.Context) ([]*domain.Group, error) {
-	const query = `SELECT id, name, description FROM groups ORDER BY name ASC`
+	const query = `SELECT id, name, description, created_at, updated_at FROM groups ORDER BY name ASC`
 
 	rows, err := r.pool.Query(ctx, query)
 	if err != nil {
@@ -136,7 +136,7 @@ func (r *PostgresGroupRepository) List(ctx context.Context) ([]*domain.Group, er
 	groups := []*domain.Group{}
 	for rows.Next() {
 		var g domain.Group
-		if err := rows.Scan(&g.ID, &g.Name, &g.Description); err != nil {
+		if err := rows.Scan(&g.ID, &g.Name, &g.Description, &g.CreatedAt, &g.UpdatedAt); err != nil {
 			return nil, err
 		}
 		groups = append(groups, &g)
@@ -145,8 +145,8 @@ func (r *PostgresGroupRepository) List(ctx context.Context) ([]*domain.Group, er
 }
 
 func (r *PostgresGroupRepository) Update(ctx context.Context, g *domain.Group) error {
-	const query = `UPDATE groups SET name = $2, description = $3 WHERE id = $1`
-	tag, err := r.pool.Exec(ctx, query, g.ID, g.Name, g.Description)
+	const query = `UPDATE groups SET name = $2, description = $3, updated_at = $4 WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, g.ID, g.Name, g.Description, g.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -156,29 +156,51 @@ func (r *PostgresGroupRepository) Update(ctx context.Context, g *domain.Group) e
 	return nil
 }
 
+// AddMember insere dans la table de jonction ET met a jour
+// groups.updated_at -- sans ca, updated_at resterait perime en base par
+// rapport a la mutation deja faite en memoire par domain.Group.AddMember.
 func (r *PostgresGroupRepository) AddMember(ctx context.Context, groupID, userID string) error {
-	const query = `
+	const insertQuery = `
 		INSERT INTO group_members (group_id, user_id)
 		VALUES ($1, $2)
 		ON CONFLICT DO NOTHING
 	`
-	_, err := r.pool.Exec(ctx, query, groupID, userID)
-	return err
+	if _, err := r.pool.Exec(ctx, insertQuery, groupID, userID); err != nil {
+		return err
+	}
+	return r.touch(ctx, groupID)
 }
 
+// RemoveMember -- meme remarque que AddMember au sujet de updated_at.
 func (r *PostgresGroupRepository) RemoveMember(ctx context.Context, groupID, userID string) error {
-	const query = `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`
-	_, err := r.pool.Exec(ctx, query, groupID, userID)
-	return err
+	const deleteQuery = `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`
+	if _, err := r.pool.Exec(ctx, deleteQuery, groupID, userID); err != nil {
+		return err
+	}
+	return r.touch(ctx, groupID)
 }
 
+// AssignRole -- meme remarque que AddMember au sujet de updated_at.
 func (r *PostgresGroupRepository) AssignRole(ctx context.Context, groupID, roleID string) error {
-	const query = `
+	const insertQuery = `
 		INSERT INTO group_roles (group_id, role_id)
 		VALUES ($1, $2)
 		ON CONFLICT DO NOTHING
 	`
-	_, err := r.pool.Exec(ctx, query, groupID, roleID)
+	if _, err := r.pool.Exec(ctx, insertQuery, groupID, roleID); err != nil {
+		return err
+	}
+	return r.touch(ctx, groupID)
+}
+
+// touch met a jour updated_at a l'instant present. N'echoue pas si le
+// groupe n'existe plus (RowsAffected == 0 ignore) -- l'operation
+// principale (AddMember/RemoveMember/AssignRole) a deja reussi a ce
+// stade, pas la peine de faire echouer toute l'operation pour cette
+// seule mise a jour de metadonnee.
+func (r *PostgresGroupRepository) touch(ctx context.Context, groupID string) error {
+	const query = `UPDATE groups SET updated_at = now() WHERE id = $1`
+	_, err := r.pool.Exec(ctx, query, groupID)
 	return err
 }
 

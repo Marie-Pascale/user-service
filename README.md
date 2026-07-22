@@ -141,6 +141,8 @@ Pour les tests d'intégration automatisés (`make test-integration`), le nettoya
 | `Group` | Un regroupement d'usagers ; les rôles assignés au groupe sont hérités par tous ses membres |
 | `Session` | Une connexion active d'un usager — jeton opaque stocké en base, révocable immédiatement (voir `UserAuthMiddleware`) |
 
+Toutes les entités ont `created_at`/`updated_at` (`Permission`, `Role`, `Group` depuis la migration `000016`). `UpdatedAt` avance à **chaque** mutation, pas seulement via `PUT` — par exemple, `Role.GrantPermission()`/`RevokePermission()` et `Group.AddMember()`/`RemoveMember()`/`AssignRole()` le mettent aussi à jour, autant en mémoire (domaine) qu'en base (repository Postgres).
+
 Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Calculé par `AuthorizationService.ResolvePermissionKeys` dans la couche `application`.
 
 ## Cas d'usage (`internal/application`)
@@ -283,6 +285,8 @@ Contrairement aux autres middlewares du projet (qui protègent chacun une route 
 
 ## Prochaines étapes
 
+- `Service.UpdatedAt` — `created_at` existe déjà, `updated_at` reste à ajouter (même patron que `Permission`/`Role`/`Group`, qui viennent d'être complétés)
+- `User.LastLoginAt` — décision à prendre : mis à jour dans `AuthenticateUserUseCase` (spécifique au mot de passe local) ou dans `CreateSessionUseCase` (couvre aussi les futurs `Google`/`Facebook`)
 - Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
 - Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
 - Tests de charge pour les nouveaux endpoints critiques (voir `loadtest/README.md`)

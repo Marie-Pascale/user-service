@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestNewGroup(t *testing.T) {
 	t.Run("cree un groupe valide", func(t *testing.T) {
@@ -10,6 +13,12 @@ func TestNewGroup(t *testing.T) {
 		}
 		if len(g.MemberUserIDs) != 0 || len(g.RoleIDs) != 0 {
 			t.Error("un nouveau groupe devrait etre vide (aucun membre, aucun role)")
+		}
+		if g.CreatedAt.IsZero() {
+			t.Error("CreatedAt ne devrait pas etre a zero")
+		}
+		if g.CreatedAt != g.UpdatedAt {
+			t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
 		}
 	})
 
@@ -23,10 +32,15 @@ func TestNewGroup(t *testing.T) {
 
 func TestGroup_Membership(t *testing.T) {
 	g, _ := NewGroup("1", "equipe-support", "")
+	originalUpdatedAt := g.UpdatedAt
 
+	time.Sleep(time.Millisecond)
 	g.AddMember("user-1")
 	if !g.HasMember("user-1") {
 		t.Error("le groupe devrait avoir user-1 comme membre apres AddMember")
+	}
+	if !g.UpdatedAt.After(originalUpdatedAt) {
+		t.Error("UpdatedAt devrait avancer apres AddMember")
 	}
 
 	// Ajouter deux fois ne doit pas creer de doublon.

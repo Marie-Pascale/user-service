@@ -240,6 +240,9 @@ func TestPostgresRoleRepository_GrantAndRevokePermission(t *testing.T) {
 	if len(got.PermissionIDs) != 1 || got.PermissionIDs[0] != p.ID {
 		t.Errorf("PermissionIDs = %v, attendu [%q]", got.PermissionIDs, p.ID)
 	}
+	if !got.UpdatedAt.After(role.CreatedAt) {
+		t.Error("UpdatedAt devrait avoir avance en base apres GrantPermission (pas seulement en memoire)")
+	}
 
 	if err := roleRepo.RevokePermission(ctx, role.ID, p.ID); err != nil {
 		t.Fatalf("RevokePermission: %v", err)
@@ -335,6 +338,9 @@ func TestPostgresGroupRepository_MembersAndRoles(t *testing.T) {
 	}
 	if len(got.RoleIDs) != 1 || got.RoleIDs[0] != role.ID {
 		t.Errorf("RoleIDs = %v, attendu [%q]", got.RoleIDs, role.ID)
+	}
+	if !got.UpdatedAt.After(g.CreatedAt) {
+		t.Error("UpdatedAt devrait avoir avance en base apres AddMember/AssignRole (pas seulement en memoire)")
 	}
 
 	viaMembership, err := groupRepo.ListByMemberUserID(ctx, u.ID)

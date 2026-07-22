@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 var ErrEmptyGroupName = errors.New("group name is required")
@@ -17,6 +18,8 @@ type Group struct {
 	Description   string
 	MemberUserIDs []string
 	RoleIDs       []string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // NewGroup cree un groupe valide, vide au depart.
@@ -26,12 +29,15 @@ func NewGroup(id, name, description string) (*Group, error) {
 		return nil, ErrEmptyGroupName
 	}
 
+	now := time.Now().UTC()
 	return &Group{
 		ID:            id,
 		Name:          name,
 		Description:   description,
 		MemberUserIDs: []string{},
 		RoleIDs:       []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}, nil
 }
 
@@ -41,6 +47,7 @@ func (g *Group) AddMember(userID string) {
 		return
 	}
 	g.MemberUserIDs = append(g.MemberUserIDs, userID)
+	g.UpdatedAt = time.Now().UTC()
 }
 
 // RemoveMember retire un usager du groupe.
@@ -48,6 +55,7 @@ func (g *Group) RemoveMember(userID string) {
 	for i, id := range g.MemberUserIDs {
 		if id == userID {
 			g.MemberUserIDs = append(g.MemberUserIDs[:i], g.MemberUserIDs[i+1:]...)
+			g.UpdatedAt = time.Now().UTC()
 			return
 		}
 	}
@@ -71,6 +79,7 @@ func (g *Group) AssignRole(roleID string) {
 		}
 	}
 	g.RoleIDs = append(g.RoleIDs, roleID)
+	g.UpdatedAt = time.Now().UTC()
 }
 
 // UpdateDetails modifie le nom et la description d'un groupe existant,
@@ -83,5 +92,6 @@ func (g *Group) UpdateDetails(name, description string) error {
 	}
 	g.Name = name
 	g.Description = description
+	g.UpdatedAt = time.Now().UTC()
 	return nil
 }

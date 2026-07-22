@@ -22,8 +22,17 @@ func TestNewPermission(t *testing.T) {
 			if err != tt.wantErr {
 				t.Fatalf("erreur = %v, attendu %v", err, tt.wantErr)
 			}
-			if tt.wantErr == nil && p.Key != tt.key {
+			if tt.wantErr != nil {
+				return
+			}
+			if p.Key != tt.key {
 				t.Errorf("Key = %q, attendu %q", p.Key, tt.key)
+			}
+			if p.CreatedAt.IsZero() {
+				t.Error("CreatedAt ne devrait pas etre a zero")
+			}
+			if p.CreatedAt != p.UpdatedAt {
+				t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
 			}
 		})
 	}

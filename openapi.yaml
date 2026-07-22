@@ -18,7 +18,7 @@ info:
     agir sur son propre compte ; agir sur celui d'un autre necessite la
     permission correspondante (typiquement via le role "admin", assignable
     avec `make grant-admin`).
-  version: "0.9.0"
+  version: "0.10.0"
 
 servers:
   - url: http://localhost:8080
@@ -1349,6 +1349,12 @@ components:
           example: "orders:read"
         description:
           type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     CreatePermissionRequest:
       type: object
@@ -1387,6 +1393,13 @@ components:
           items:
             type: string
             format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: Mis a jour aussi par POST/DELETE /roles/{id}/permissions, pas seulement PUT /roles/{id}.
 
     CreateRoleRequest:
       type: object
@@ -1417,6 +1430,13 @@ components:
           items:
             type: string
             format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: Mis a jour aussi par les sous-routes /members et /roles, pas seulement PUT /groups/{id}.
 
     CreateGroupRequest:
       type: object

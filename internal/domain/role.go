@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 var ErrEmptyRoleName = errors.New("role name is required")
@@ -20,6 +21,8 @@ type Role struct {
 	Name          string
 	Description   string
 	PermissionIDs []string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // NewRole cree un role valide, sans permission au depart.
@@ -29,11 +32,14 @@ func NewRole(id, name, description string) (*Role, error) {
 		return nil, ErrEmptyRoleName
 	}
 
+	now := time.Now().UTC()
 	return &Role{
 		ID:            id,
 		Name:          name,
 		Description:   description,
 		PermissionIDs: []string{},
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}, nil
 }
 
@@ -45,6 +51,7 @@ func (r *Role) GrantPermission(permissionID string) {
 		}
 	}
 	r.PermissionIDs = append(r.PermissionIDs, permissionID)
+	r.UpdatedAt = time.Now().UTC()
 }
 
 // RevokePermission retire une permission du role.
@@ -52,6 +59,7 @@ func (r *Role) RevokePermission(permissionID string) {
 	for i, id := range r.PermissionIDs {
 		if id == permissionID {
 			r.PermissionIDs = append(r.PermissionIDs[:i], r.PermissionIDs[i+1:]...)
+			r.UpdatedAt = time.Now().UTC()
 			return
 		}
 	}
@@ -77,5 +85,6 @@ func (r *Role) UpdateDetails(name, description string) error {
 	}
 	r.Name = name
 	r.Description = description
+	r.UpdatedAt = time.Now().UTC()
 	return nil
 }

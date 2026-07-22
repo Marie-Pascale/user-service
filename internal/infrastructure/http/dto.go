@@ -154,14 +154,23 @@ type createServiceResponse struct {
 // --- Permission ------------------------------------------------------
 
 type permissionResponse struct {
-	ID          string `json:"id"`
-	ServiceID   string `json:"service_id"`
-	Key         string `json:"key"`
-	Description string `json:"description"`
+	ID          string    `json:"id"`
+	ServiceID   string    `json:"service_id"`
+	Key         string    `json:"key"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func newPermissionResponse(p *domain.Permission) permissionResponse {
-	return permissionResponse{ID: p.ID, ServiceID: p.ServiceID, Key: p.Key, Description: p.Description}
+	return permissionResponse{
+		ID:          p.ID,
+		ServiceID:   p.ServiceID,
+		Key:         p.Key,
+		Description: p.Description,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+	}
 }
 
 type createPermissionRequest struct {
@@ -182,14 +191,23 @@ type registerPermissionRequest struct {
 // --- Role --------------------------------------------------------------
 
 type roleResponse struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	PermissionIDs []string `json:"permission_ids"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	PermissionIDs []string  `json:"permission_ids"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func newRoleResponse(r *domain.Role) roleResponse {
-	return roleResponse{ID: r.ID, Name: r.Name, Description: r.Description, PermissionIDs: r.PermissionIDs}
+	return roleResponse{
+		ID:            r.ID,
+		Name:          r.Name,
+		Description:   r.Description,
+		PermissionIDs: r.PermissionIDs,
+		CreatedAt:     r.CreatedAt,
+		UpdatedAt:     r.UpdatedAt,
+	}
 }
 
 type createRoleRequest struct {
@@ -204,11 +222,13 @@ type roleGrantPermissionRequest struct {
 // --- Group -------------------------------------------------------------
 
 type groupResponse struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	MemberUserIDs []string `json:"member_user_ids"`
-	RoleIDs       []string `json:"role_ids"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	MemberUserIDs []string  `json:"member_user_ids"`
+	RoleIDs       []string  `json:"role_ids"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func newGroupResponse(g *domain.Group) groupResponse {
@@ -218,6 +238,8 @@ func newGroupResponse(g *domain.Group) groupResponse {
 		Description:   g.Description,
 		MemberUserIDs: g.MemberUserIDs,
 		RoleIDs:       g.RoleIDs,
+		CreatedAt:     g.CreatedAt,
+		UpdatedAt:     g.UpdatedAt,
 	}
 }
 
