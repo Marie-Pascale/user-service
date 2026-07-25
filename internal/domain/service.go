@@ -18,6 +18,7 @@ type Service struct {
 	Description string
 	APIKeyHash  string
 	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // NewService cree un nouveau service et genere sa cle API.
@@ -34,12 +35,14 @@ func NewService(id, name, description string) (svc *Service, plainAPIKey string,
 		return nil, "", err
 	}
 
+	now := time.Now().UTC()
 	svc = &Service{
 		ID:          id,
 		Name:        name,
 		Description: description,
 		APIKeyHash:  HashToken(plainAPIKey),
-		CreatedAt:   time.Now().UTC(),
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 	return svc, plainAPIKey, nil
 }
@@ -52,13 +55,15 @@ func (s *Service) VerifyAPIKey(plainAPIKey string) bool {
 
 // RotateAPIKey genere une nouvelle cle API pour ce service, invalidant
 // l'ancienne. Retourne la nouvelle cle en clair (une seule fois, comme
-// a la creation).
+// a la creation). Une rotation de cle est une mutation comme une autre --
+// UpdatedAt avance, exactement comme pour UpdateDetails.
 func (s *Service) RotateAPIKey() (plainAPIKey string, err error) {
 	plainAPIKey, err = generateSecureToken(32)
 	if err != nil {
 		return "", err
 	}
 	s.APIKeyHash = HashToken(plainAPIKey)
+	s.UpdatedAt = time.Now().UTC()
 	return plainAPIKey, nil
 }
 
@@ -71,5 +76,6 @@ func (s *Service) UpdateDetails(name, description string) error {
 	}
 	s.Name = name
 	s.Description = description
+	s.UpdatedAt = time.Now().UTC()
 	return nil
 }

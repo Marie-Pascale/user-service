@@ -1,6 +1,9 @@
 package domain
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestNewService(t *testing.T) {
 	t.Run("cree un service valide avec une cle API", func(t *testing.T) {
@@ -19,6 +22,12 @@ func TestNewService(t *testing.T) {
 		}
 		if svc.APIKeyHash == plainKey {
 			t.Error("APIKeyHash ne devrait jamais etre egal a la cle en clair")
+		}
+		if svc.CreatedAt.IsZero() {
+			t.Error("CreatedAt ne devrait pas etre a zero")
+		}
+		if svc.CreatedAt != svc.UpdatedAt {
+			t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
 		}
 	})
 
@@ -56,7 +65,9 @@ func TestService_VerifyAPIKey(t *testing.T) {
 
 func TestService_RotateAPIKey(t *testing.T) {
 	svc, oldKey, _ := NewService("1", "orders-service", "")
+	originalUpdatedAt := svc.UpdatedAt
 
+	time.Sleep(time.Millisecond)
 	newKey, err := svc.RotateAPIKey()
 	if err != nil {
 		t.Fatalf("erreur inattendue: %v", err)
@@ -70,6 +81,9 @@ func TestService_RotateAPIKey(t *testing.T) {
 	}
 	if !svc.VerifyAPIKey(newKey) {
 		t.Error("la nouvelle cle devrait etre valide apres rotation")
+	}
+	if !svc.UpdatedAt.After(originalUpdatedAt) {
+		t.Error("UpdatedAt devrait avancer apres RotateAPIKey")
 	}
 }
 

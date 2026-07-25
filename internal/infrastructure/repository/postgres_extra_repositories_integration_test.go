@@ -81,6 +81,9 @@ func TestPostgresServiceRepository_UpdateAPIKeyHash(t *testing.T) {
 	if got.ID != svc.ID {
 		t.Errorf("ID = %q, attendu %q", got.ID, svc.ID)
 	}
+	if !got.UpdatedAt.After(got.CreatedAt) {
+		t.Error("UpdatedAt devrait avoir avance en base apres UpdateAPIKeyHash (pas seulement en memoire)")
+	}
 }
 
 func TestPostgresServiceRepository_Update(t *testing.T) {

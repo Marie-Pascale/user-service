@@ -46,6 +46,7 @@ func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:        svc.Name,
 		Description: svc.Description,
 		APIKey:      plainAPIKey,
+		UpdatedAt:   svc.UpdatedAt,
 	})
 }
 
@@ -141,5 +142,6 @@ func (h *ServiceHandler) RotateAPIKey(w http.ResponseWriter, r *http.Request) {
 		Name:        svc.Name,
 		Description: svc.Description,
 		APIKey:      plainAPIKey,
+		UpdatedAt:   svc.UpdatedAt,
 	})
 }
