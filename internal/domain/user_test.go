@@ -3,6 +3,7 @@ package domain
 import (
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestNewUser(t *testing.T) {
@@ -178,4 +179,26 @@ func TestUser_UpdateProfile(t *testing.T) {
 			t.Errorf("erreur = %v, attendu %v", err, ErrInvalidEmail)
 		}
 	})
+}
+
+func TestUser_RecordLogin(t *testing.T) {
+	u, _ := NewUser("1", "Alice", "alice@example.com")
+
+	if u.LastLoginAt != nil {
+		t.Error("LastLoginAt devrait etre nil avant toute connexion")
+	}
+
+	originalUpdatedAt := u.UpdatedAt
+	time.Sleep(time.Millisecond)
+	u.RecordLogin()
+
+	if u.LastLoginAt == nil {
+		t.Fatal("LastLoginAt ne devrait plus etre nil apres RecordLogin")
+	}
+	if !u.LastLoginAt.After(originalUpdatedAt) {
+		t.Error("LastLoginAt devrait etre posterieur a la creation de l'usager")
+	}
+	if !u.UpdatedAt.After(originalUpdatedAt) {
+		t.Error("UpdatedAt devrait aussi avancer apres RecordLogin")
+	}
 }

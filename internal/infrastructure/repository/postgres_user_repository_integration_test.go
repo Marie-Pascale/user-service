@@ -184,3 +184,46 @@ func TestPostgresUserRepository_AssignAndRevokeRole(t *testing.T) {
 		t.Errorf("RoleIDs = %v, attendu vide apres RevokeRole", got.RoleIDs)
 	}
 }
+
+func TestPostgresUserRepository_RecordLogin(t *testing.T) {
+	repo := newTestRepo(t)
+	ctx := context.Background()
+
+	u, _ := domain.NewUser(domain.NewID(), "Login Test", "record-login-test@example.com")
+	if err := repo.Create(ctx, u); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	t.Cleanup(func() { _ = repo.Delete(ctx, u.ID) })
+
+	before, err := repo.GetByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetByID (avant): %v", err)
+	}
+	if before.LastLoginAt != nil {
+		t.Error("LastLoginAt devrait etre nil avant tout appel a RecordLogin")
+	}
+
+	if err := repo.RecordLogin(ctx, u.ID); err != nil {
+		t.Fatalf("RecordLogin: %v", err)
+	}
+
+	after, err := repo.GetByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetByID (apres): %v", err)
+	}
+	if after.LastLoginAt == nil {
+		t.Fatal("LastLoginAt ne devrait plus etre nil apres RecordLogin")
+	}
+	if !after.UpdatedAt.After(before.UpdatedAt) {
+		t.Error("UpdatedAt devrait aussi avoir avance en base apres RecordLogin")
+	}
+}
+
+func TestPostgresUserRepository_RecordLogin_NotFound(t *testing.T) {
+	repo := newTestRepo(t)
+
+	err := repo.RecordLogin(context.Background(), domain.NewID())
+	if !errors.Is(err, application.ErrNotFound) {
+		t.Errorf("erreur = %v, attendu %v", err, application.ErrNotFound)
+	}
+}

@@ -47,6 +47,13 @@ type User struct {
 	PermissionIDs []string
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+
+	// LastLoginAt est nil tant que l'usager ne s'est jamais connecte --
+	// contrairement a CreatedAt/UpdatedAt, ce champ n'a pas de valeur
+	// significative a la creation, d'ou le pointeur plutot qu'un
+	// time.Time nu (qui forcerait une valeur "zero" ambigue avec une
+	// vraie date). Mis a jour via RecordLogin.
+	LastLoginAt *time.Time
 }
 
 // NewUser cree un usager valide ou retourne une erreur de validation.
@@ -141,4 +148,16 @@ func (u *User) UpdateProfile(name, email string) error {
 	u.Email = email
 	u.UpdatedAt = time.Now().UTC()
 	return nil
+}
+
+// RecordLogin met a jour l'horodatage de derniere connexion -- appelee
+// depuis CreateSessionUseCase, PAS depuis AuthenticateUserUseCase :
+// n'importe quelle methode d'authentification qui aboutit a une session
+// (mot de passe local aujourd'hui, Google/Facebook plus tard) doit faire
+// avancer ce champ de la meme facon, sans dupliquer cette logique dans
+// chaque flot d'authentification. Meme patron que AuthMethod.MarkUsed.
+func (u *User) RecordLogin() {
+	now := time.Now().UTC()
+	u.LastLoginAt = &now
+	u.UpdatedAt = now
 }

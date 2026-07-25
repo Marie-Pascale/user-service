@@ -30,13 +30,16 @@ func (r *PostgresUserRepository) Create(ctx context.Context, u *domain.User) err
 		INSERT INTO users (id, name, email, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
+	// last_login_at n'est jamais fourni a la creation -- NULL par defaut
+	// (pas de colonne dans l'INSERT), coherent avec User.LastLoginAt qui
+	// vaut toujours nil pour un usager tout juste cree.
 	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, string(u.Status), u.CreatedAt, u.UpdatedAt)
 	return err
 }
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	const query = `
-		SELECT id, name, email, status, created_at, updated_at
+		SELECT id, name, email, status, created_at, updated_at, last_login_at
 		FROM users
 		WHERE id = $1
 	`
@@ -45,7 +48,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*domai
 
 func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const query = `
-		SELECT id, name, email, status, created_at, updated_at
+		SELECT id, name, email, status, created_at, updated_at, last_login_at
 		FROM users
 		WHERE email = $1
 	`
@@ -59,7 +62,10 @@ func (r *PostgresUserRepository) scanOne(ctx context.Context, query string, arg 
 	var u domain.User
 	var status string
 
-	err := r.pool.QueryRow(ctx, query, arg).Scan(&u.ID, &u.Name, &u.Email, &status, &u.CreatedAt, &u.UpdatedAt)
+	// &u.LastLoginAt fonctionne directement avec pgx pour une colonne
+	// nullable scannee dans un champ *time.Time : NULL -> nil, sinon un
+	// *time.Time frais est alloue automatiquement.
+	err := r.pool.QueryRow(ctx, query, arg).Scan(&u.ID, &u.Name, &u.Email, &status, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, application.ErrNotFound
@@ -107,7 +113,7 @@ func (r *PostgresUserRepository) idsFor(ctx context.Context, table, column, user
 
 func (r *PostgresUserRepository) List(ctx context.Context) ([]*domain.User, error) {
 	const query = `
-		SELECT id, name, email, status, created_at, updated_at
+		SELECT id, name, email, status, created_at, updated_at, last_login_at
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -125,7 +131,7 @@ func (r *PostgresUserRepository) List(ctx context.Context) ([]*domain.User, erro
 	for rows.Next() {
 		var u domain.User
 		var status string
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &status, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &status, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt); err != nil {
 			return nil, err
 		}
 		u.Status = domain.Status(status)
@@ -185,4 +191,20 @@ func (r *PostgresUserRepository) RevokePermission(ctx context.Context, userID, p
 	const query = `DELETE FROM user_permissions WHERE user_id = $1 AND permission_id = $2`
 	_, err := r.pool.Exec(ctx, query, userID, permissionID)
 	return err
+}
+
+// RecordLogin met a jour last_login_at ET updated_at directement en base
+// -- appelee par CreateSessionUseCase a chaque connexion reussie, sans
+// passer par Update (evite un aller-retour GetByID + mutation + Update
+// pour un simple horodatage, meme patron que AuthMethodRepository.MarkUsed).
+func (r *PostgresUserRepository) RecordLogin(ctx context.Context, userID string) error {
+	const query = `UPDATE users SET last_login_at = now(), updated_at = now() WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, query, userID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return application.ErrNotFound
+	}
+	return nil
 }

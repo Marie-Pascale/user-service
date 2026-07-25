@@ -15,17 +15,23 @@ import (
 // les deux en sequence.
 type CreateSessionUseCase struct {
 	Sessions SessionRepository
+	Users    UserRepository
 	TTL      time.Duration
 }
 
-func NewCreateSessionUseCase(sessions SessionRepository, ttl time.Duration) *CreateSessionUseCase {
-	return &CreateSessionUseCase{Sessions: sessions, TTL: ttl}
+func NewCreateSessionUseCase(sessions SessionRepository, users UserRepository, ttl time.Duration) *CreateSessionUseCase {
+	return &CreateSessionUseCase{Sessions: sessions, Users: users, TTL: ttl}
 }
 
 // Execute cree une session pour l'usager donne. Retourne le jeton en
 // clair -- a transmettre au client (ex: dans le corps de la reponse HTTP
 // de login) -- qui devra le presenter pour chaque requete authentifiee
 // suivante.
+//
+// Enregistre aussi last_login_at ICI plutot que dans AuthenticateUserUseCase
+// -- voir domain.User.RecordLogin pour le raisonnement complet (couvrir
+// uniformement tous les futurs fournisseurs d'authentification, pas
+// seulement le mot de passe local).
 func (uc *CreateSessionUseCase) Execute(ctx context.Context, userID string) (session *domain.Session, plainToken string, err error) {
 	session, plainToken, err = domain.NewSession(domain.NewID(), userID, uc.TTL)
 	if err != nil {
@@ -35,6 +41,13 @@ func (uc *CreateSessionUseCase) Execute(ctx context.Context, userID string) (ses
 	if err := uc.Sessions.Create(ctx, session); err != nil {
 		return nil, "", err
 	}
+
+	// Best-effort : un echec de RecordLogin ne doit pas empecher la
+	// connexion elle-meme -- la session est deja creee et valide a ce
+	// stade, last_login_at n'est qu'une metadonnee informative, pas une
+	// condition de securite. Meme logique que UserAuthMiddleware avec
+	// Sessions.Touch.
+	_ = uc.Users.RecordLogin(ctx, userID)
 
 	return session, plainToken, nil
 }

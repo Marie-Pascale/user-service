@@ -14,14 +14,15 @@ import (
 // --- Reponses ------------------------------------------------------------
 
 type userResponse struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Email         string    `json:"email"`
-	Status        string    `json:"status"`
-	RoleIDs       []string  `json:"role_ids"`
-	PermissionIDs []string  `json:"permission_ids"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	Email         string     `json:"email"`
+	Status        string     `json:"status"`
+	RoleIDs       []string   `json:"role_ids"`
+	PermissionIDs []string   `json:"permission_ids"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	LastLoginAt   *time.Time `json:"last_login_at"`
 }
 
 func newUserResponse(u *domain.User) userResponse {
@@ -34,6 +35,7 @@ func newUserResponse(u *domain.User) userResponse {
 		PermissionIDs: u.PermissionIDs,
 		CreatedAt:     u.CreatedAt,
 		UpdatedAt:     u.UpdatedAt,
+		LastLoginAt:   u.LastLoginAt,
 	}
 }
 

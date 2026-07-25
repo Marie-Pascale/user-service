@@ -8,17 +8,20 @@ import (
 
 func TestCreateSessionUseCase_Execute(t *testing.T) {
 	sessions := newFakeSessionRepo()
-	uc := NewCreateSessionUseCase(sessions, time.Hour)
+	users := newFakeUserRepo()
+	u := mustNewTestUser(t, users, "Alice", "alice@example.com")
 
-	session, plainToken, err := uc.Execute(context.Background(), "user-1")
+	uc := NewCreateSessionUseCase(sessions, users, time.Hour)
+
+	session, plainToken, err := uc.Execute(context.Background(), u.ID)
 	if err != nil {
 		t.Fatalf("erreur inattendue: %v", err)
 	}
 	if plainToken == "" {
 		t.Error("le jeton en clair ne devrait pas etre vide")
 	}
-	if session.UserID != "user-1" {
-		t.Errorf("UserID = %q, attendu %q", session.UserID, "user-1")
+	if session.UserID != u.ID {
+		t.Errorf("UserID = %q, attendu %q", session.UserID, u.ID)
 	}
 
 	// La session doit avoir ete persistee.
@@ -28,5 +31,28 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 	}
 	if got.ID != session.ID {
 		t.Errorf("session persistee = %q, attendu %q", got.ID, session.ID)
+	}
+
+	// RecordLogin doit avoir ete appele -- voir domain.User.RecordLogin.
+	updated, err := users.GetByID(context.Background(), u.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if updated.LastLoginAt == nil {
+		t.Error("LastLoginAt devrait etre defini apres CreateSessionUseCase.Execute")
+	}
+}
+
+func TestCreateSessionUseCase_Execute_IgnoresRecordLoginFailure(t *testing.T) {
+	// Un usager inexistant ne devrait PAS faire echouer la creation de
+	// session -- RecordLogin est best-effort (voir le commentaire dans
+	// create_session.go).
+	sessions := newFakeSessionRepo()
+	users := newFakeUserRepo()
+	uc := NewCreateSessionUseCase(sessions, users, time.Hour)
+
+	_, _, err := uc.Execute(context.Background(), "usager-inexistant")
+	if err != nil {
+		t.Fatalf("erreur inattendue: %v (RecordLogin devrait etre best-effort)", err)
 	}
 }

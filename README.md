@@ -143,6 +143,8 @@ Pour les tests d'intégration automatisés (`make test-integration`), le nettoya
 
 Toutes les entités ont `created_at`/`updated_at` (`Permission`, `Role`, `Group` depuis la migration `000016` ; `Service` depuis la `000017`). `UpdatedAt` avance à **chaque** mutation, pas seulement via `PUT` — par exemple, `Role.GrantPermission()`/`RevokePermission()`, `Group.AddMember()`/`RemoveMember()`/`AssignRole()` et `Service.RotateAPIKey()` le mettent aussi à jour, autant en mémoire (domaine) qu'en base (repository Postgres).
 
+`User` a aussi `LastLoginAt` (`null` tant que jamais connecté, migration `000018`), mis à jour dans **`CreateSessionUseCase`** — pas dans `AuthenticateUserUseCase` — pour couvrir uniformément toute méthode de connexion aboutissant à une session (mot de passe local aujourd'hui, `Google`/`Facebook` plus tard), sans dupliquer cette logique dans chaque flot d'authentification. C'est du **best-effort** : un échec de cette mise à jour ne bloque jamais la connexion elle-même (même logique que `UserAuthMiddleware` avec `Sessions.Touch`).
+
 Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Calculé par `AuthorizationService.ResolvePermissionKeys` dans la couche `application`.
 
 ## Cas d'usage (`internal/application`)
@@ -285,7 +287,6 @@ Contrairement aux autres middlewares du projet (qui protègent chacun une route 
 
 ## Prochaines étapes
 
-- `User.LastLoginAt` — décision à prendre : mis à jour dans `AuthenticateUserUseCase` (spécifique au mot de passe local) ou dans `CreateSessionUseCase` (couvre aussi les futurs `Google`/`Facebook`)
 - Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
 - Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
 - Tests de charge pour les nouveaux endpoints critiques (voir `loadtest/README.md`)

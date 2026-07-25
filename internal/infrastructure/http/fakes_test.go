@@ -116,6 +116,15 @@ func (f *fakeUserRepo) RevokePermission(ctx context.Context, userID, permissionI
 	return nil
 }
 
+func (f *fakeUserRepo) RecordLogin(ctx context.Context, userID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return application.ErrNotFound
+	}
+	u.RecordLogin()
+	return nil
+}
+
 var _ application.UserRepository = (*fakeUserRepo)(nil)
 
 // fakeAuthMethodRepo est une implementation en memoire de

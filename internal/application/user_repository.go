@@ -34,4 +34,9 @@ type UserRepository interface {
 	RevokeRole(ctx context.Context, userID, roleID string) error
 	AssignPermission(ctx context.Context, userID, permissionID string) error
 	RevokePermission(ctx context.Context, userID, permissionID string) error
+
+	// RecordLogin met a jour last_login_at (et updated_at) directement en
+	// base, sans passer par Update -- meme patron que
+	// AuthMethodRepository.MarkUsed. Appelee par CreateSessionUseCase.
+	RecordLogin(ctx context.Context, userID string) error
 }

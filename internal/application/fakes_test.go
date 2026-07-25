@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"testing"
 
 	"gestionnaire-usagers/internal/domain"
 )
@@ -117,6 +118,15 @@ func (f *fakeUserRepo) RevokePermission(ctx context.Context, userID, permissionI
 			break
 		}
 	}
+	return nil
+}
+
+func (f *fakeUserRepo) RecordLogin(ctx context.Context, userID string) error {
+	u, ok := f.byID[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.RecordLogin() // reutilise la methode du domaine plutot que dupliquer sa logique
 	return nil
 }
 
@@ -466,3 +476,20 @@ func (f *fakeSessionRepo) DeleteAllForUser(ctx context.Context, userID string) e
 }
 
 var _ SessionRepository = (*fakeSessionRepo)(nil)
+
+// mustNewTestUser cree et persiste un usager valide dans un fakeUserRepo --
+// raccourci pour les tests qui ont besoin d'un usager existant sans que
+// sa construction elle-meme soit le sujet du test. echoue immediatement
+// (Fatalf) si la construction ou la persistance rate, ce qui ne devrait
+// jamais arriver avec des valeurs de test valides.
+func mustNewTestUser(t *testing.T, users *fakeUserRepo, name, email string) *domain.User {
+	t.Helper()
+	u, err := domain.NewUser(domain.NewID(), name, email)
+	if err != nil {
+		t.Fatalf("construction de l'usager de test: %v", err)
+	}
+	if err := users.Create(context.Background(), u); err != nil {
+		t.Fatalf("persistance de l'usager de test: %v", err)
+	}
+	return u
+}

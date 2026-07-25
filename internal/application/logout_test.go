@@ -9,10 +9,12 @@ import (
 
 func TestLogoutUseCase_Execute(t *testing.T) {
 	sessions := newFakeSessionRepo()
-	createSession := NewCreateSessionUseCase(sessions, time.Hour)
+	users := newFakeUserRepo()
+	u := mustNewTestUser(t, users, "Alice", "alice@example.com")
+	createSession := NewCreateSessionUseCase(sessions, users, time.Hour)
 	logout := NewLogoutUseCase(sessions)
 
-	session, _, err := createSession.Execute(context.Background(), "user-1")
+	session, _, err := createSession.Execute(context.Background(), u.ID)
 	if err != nil {
 		t.Fatalf("creation de la session: %v", err)
 	}

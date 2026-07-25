@@ -53,7 +53,7 @@ func main() {
 	registerUser := application.NewRegisterUserUseCase(createUser, registerAuthMethod, users)
 	authenticate := application.NewAuthenticateUserUseCase(users, authMethods, hasher)
 	authorization := application.NewAuthorizationService(users, roles, groups, permissions)
-	createSession := application.NewCreateSessionUseCase(sessions, sessionTTL)
+	createSession := application.NewCreateSessionUseCase(sessions, users, sessionTTL)
 	logout := application.NewLogoutUseCase(sessions)
 
 	// --- HTTP --------------------------------------------------------------
