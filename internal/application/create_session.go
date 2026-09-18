@@ -28,12 +28,16 @@ func NewCreateSessionUseCase(sessions SessionRepository, users UserRepository, t
 // de login) -- qui devra le presenter pour chaque requete authentifiee
 // suivante.
 //
+// ipAddress et userAgent viennent de la requete HTTP de connexion (voir
+// AuthHandler.Login) -- captures UNE SEULE FOIS ici, a la creation, pour
+// servir d'ancre a Session.IsSuspicious par la suite.
+//
 // Enregistre aussi last_login_at ICI plutot que dans AuthenticateUserUseCase
 // -- voir domain.User.RecordLogin pour le raisonnement complet (couvrir
 // uniformement tous les futurs fournisseurs d'authentification, pas
 // seulement le mot de passe local).
-func (uc *CreateSessionUseCase) Execute(ctx context.Context, userID string) (session *domain.Session, plainToken string, err error) {
-	session, plainToken, err = domain.NewSession(domain.NewID(), userID, uc.TTL)
+func (uc *CreateSessionUseCase) Execute(ctx context.Context, userID, ipAddress, userAgent string) (session *domain.Session, plainToken string, err error) {
+	session, plainToken, err = domain.NewSession(domain.NewID(), userID, ipAddress, userAgent, uc.TTL)
 	if err != nil {
 		return nil, "", err
 	}

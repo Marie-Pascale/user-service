@@ -285,6 +285,20 @@ environment:
 
 Contrairement aux autres middlewares du projet (qui protègent chacun une route précise), celui-ci enveloppe le routeur **au complet** dans `main.go` — un navigateur peut envoyer une requête *preflight* (`OPTIONS`) vers n'importe quelle route, et les en-têtes CORS doivent être présents sur toutes les réponses, succès comme erreurs.
 
+## Détection de vol de session
+
+Chaque `Session` enregistre l'IP et le `User-Agent` du client **au moment de la connexion** (`POST /auth/login`), migration `000019`. Sur chaque requête authentifiée suivante, `UserAuthMiddleware` compare l'IP/`User-Agent` de la requête courante à ceux enregistrés — voir `domain.Session.IsSuspicious`.
+
+**La règle** : la session n'est révoquée que si **les deux** diffèrent en même temps.
+
+- Un usager qui change de réseau (Wi-Fi → cellulaire) garde le même `User-Agent` → toléré
+- Un navigateur qui se met à jour en cours de session garde la même IP → toléré
+- Un jeton volé et rejoué depuis un autre appareil (IP **et** `User-Agent` différents) → la session est immédiatement supprimée, la requête reçoit `401`
+
+**Limite assumée, documentée dans le code** (`domain/session.go`) : le `User-Agent` est un simple en-tête HTTP, trivialement falsifiable. Un attaquant qui connaît le `User-Agent` exact de la victime (souvent visible dans les mêmes logs qui auraient fait fuiter le jeton) peut le recopier et contourner ce contrôle même depuis une IP différente. Cette règle attrape le vol "naïf" (un jeton simplement rejoué ailleurs, sans falsification des en-têtes) — pas un attaquant ciblé et sophistiqué. C'est un compromis délibéré entre sécurité et faux positifs, pas une garantie absolue.
+
+`clientIP()` (dans `internal/infrastructure/http/request_info.go`) lit `X-Forwarded-For` en priorité, avec repli sur `RemoteAddr`. **Cet en-tête n'est pas encore protégé par un reverse proxy de confiance** dans ce projet (déploiement direct) — à garder en tête si l'API est un jour placée derrière un proxy qui ne le filtre pas : un client malveillant pourrait alors falsifier son IP apparente.
+
 ## Prochaines étapes
 
 - Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité

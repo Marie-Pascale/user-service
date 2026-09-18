@@ -13,7 +13,7 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 
 	uc := NewCreateSessionUseCase(sessions, users, time.Hour)
 
-	session, plainToken, err := uc.Execute(context.Background(), u.ID)
+	session, plainToken, err := uc.Execute(context.Background(), u.ID, "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
 		t.Fatalf("erreur inattendue: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestCreateSessionUseCase_Execute_IgnoresRecordLoginFailure(t *testing.T) {
 	users := newFakeUserRepo()
 	uc := NewCreateSessionUseCase(sessions, users, time.Hour)
 
-	_, _, err := uc.Execute(context.Background(), "usager-inexistant")
+	_, _, err := uc.Execute(context.Background(), "usager-inexistant", "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
 		t.Fatalf("erreur inattendue: %v (RecordLogin devrait etre best-effort)", err)
 	}

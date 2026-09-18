@@ -14,7 +14,7 @@ func TestLogoutUseCase_Execute(t *testing.T) {
 	createSession := NewCreateSessionUseCase(sessions, users, time.Hour)
 	logout := NewLogoutUseCase(sessions)
 
-	session, _, err := createSession.Execute(context.Background(), u.ID)
+	session, _, err := createSession.Execute(context.Background(), u.ID, "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
 		t.Fatalf("creation de la session: %v", err)
 	}

@@ -59,6 +59,16 @@ func (m *UserAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		// Detection de vol de jeton : si l'IP ET le User-Agent de CETTE
+		// requete different TOUS LES DEUX de ceux enregistres a la creation
+		// de la session, on revoque immediatement -- voir la doc complete
+		// de Session.IsSuspicious (compromis assume, limites connues).
+		if session.IsSuspicious(clientIP(r), r.Header.Get("User-Agent")) {
+			_ = m.Sessions.Delete(r.Context(), session.ID)
+			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "session revoked: suspicious activity detected"})
+			return
+		}
+
 		user, err := m.Users.GetByID(r.Context(), session.UserID)
 		if err != nil {
 			writeError(w, err)

@@ -10,6 +10,9 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
+const testClientIP = "192.0.2.1"
+const testUserAgent = "Mozilla/5.0 (test)"
+
 func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 	newProtectedHandler := func(sessions *fakeSessionRepo, users *fakeUserRepo) http.Handler {
 		mw := NewUserAuthMiddleware(sessions, users)
@@ -23,24 +26,72 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		return mw.Authenticate(inner)
 	}
 
-	t.Run("laisse passer une session valide", func(t *testing.T) {
+	t.Run("laisse passer une session valide (IP et User-Agent identiques)", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
 		u := mustNewUser(t, "Alice", "alice@example.com")
 		_ = users.Create(context.Background(), u)
 
-		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, time.Hour)
+		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, testClientIP, testUserAgent, time.Hour)
 		_ = sessions.Create(context.Background(), session)
 
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
 		req.Header.Set("Authorization", "Bearer "+plainToken)
+		req.Header.Set("User-Agent", testUserAgent)
 		rec := httptest.NewRecorder()
 
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {
 			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+		}
+	})
+
+	t.Run("laisse passer si SEULE l'IP differe (reseau mobile)", func(t *testing.T) {
+		users := newFakeUserRepo()
+		sessions := newFakeSessionRepo()
+
+		u := mustNewUser(t, "Alice", "alice@example.com")
+		_ = users.Create(context.Background(), u)
+
+		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, "203.0.113.9", testUserAgent, time.Hour)
+		_ = sessions.Create(context.Background(), session)
+
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		req.Header.Set("Authorization", "Bearer "+plainToken)
+		req.Header.Set("User-Agent", testUserAgent)
+		rec := httptest.NewRecorder()
+
+		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, attendu %d (un seul changement ne devrait pas etre bloquant)", rec.Code, http.StatusOK)
+		}
+	})
+
+	t.Run("rejette et revoque si IP ET User-Agent different tous les deux", func(t *testing.T) {
+		users := newFakeUserRepo()
+		sessions := newFakeSessionRepo()
+
+		u := mustNewUser(t, "Alice", "alice@example.com")
+		_ = users.Create(context.Background(), u)
+
+		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, "203.0.113.9", "Mozilla/5.0 (autre appareil)", time.Hour)
+		_ = sessions.Create(context.Background(), session)
+
+		req := httptest.NewRequest(http.MethodGet, "/me", nil)
+		req.Header.Set("Authorization", "Bearer "+plainToken)
+		req.Header.Set("User-Agent", testUserAgent)
+		rec := httptest.NewRecorder()
+
+		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+		}
+		if _, ok := sessions.byID[session.ID]; ok {
+			t.Error("une session suspecte (IP + User-Agent differents) devrait avoir ete revoquee")
 		}
 	})
 
@@ -80,12 +131,13 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		u := mustNewUser(t, "Alice", "alice@example.com")
 		_ = users.Create(context.Background(), u)
 
-		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, time.Hour)
-		session.ExpiresAt = time.Now().UTC().Add(-time.Minute) // deja expiree
+		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, testClientIP, testUserAgent, time.Hour)
+		session.ExpiresAt = time.Now().UTC().Add(-time.Minute)
 		_ = sessions.Create(context.Background(), session)
 
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
 		req.Header.Set("Authorization", "Bearer "+plainToken)
+		req.Header.Set("User-Agent", testUserAgent)
 		rec := httptest.NewRecorder()
 
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)

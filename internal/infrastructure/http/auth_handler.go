@@ -64,7 +64,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, plainToken, err := h.CreateSession.Execute(r.Context(), u.ID)
+	session, plainToken, err := h.CreateSession.Execute(r.Context(), u.ID, clientIP(r), r.Header.Get("User-Agent"))
 	if err != nil {
 		writeError(w, err)
 		return

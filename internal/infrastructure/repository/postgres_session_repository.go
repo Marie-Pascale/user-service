@@ -23,22 +23,22 @@ var _ application.SessionRepository = (*PostgresSessionRepository)(nil)
 
 func (r *PostgresSessionRepository) Create(ctx context.Context, s *domain.Session) error {
 	const query = `
-		INSERT INTO sessions (id, user_id, token_hash, created_at, expires_at, last_used_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO sessions (id, user_id, token_hash, ip_address, user_agent, created_at, expires_at, last_used_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
-	_, err := r.pool.Exec(ctx, query, s.ID, s.UserID, s.TokenHash, s.CreatedAt, s.ExpiresAt, s.LastUsedAt)
+	_, err := r.pool.Exec(ctx, query, s.ID, s.UserID, s.TokenHash, s.IPAddress, s.UserAgent, s.CreatedAt, s.ExpiresAt, s.LastUsedAt)
 	return err
 }
 
 func (r *PostgresSessionRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*domain.Session, error) {
 	const query = `
-		SELECT id, user_id, token_hash, created_at, expires_at, last_used_at
+		SELECT id, user_id, token_hash, ip_address, user_agent, created_at, expires_at, last_used_at
 		FROM sessions
 		WHERE token_hash = $1
 	`
 	var s domain.Session
 	err := r.pool.QueryRow(ctx, query, tokenHash).Scan(
-		&s.ID, &s.UserID, &s.TokenHash, &s.CreatedAt, &s.ExpiresAt, &s.LastUsedAt,
+		&s.ID, &s.UserID, &s.TokenHash, &s.IPAddress, &s.UserAgent, &s.CreatedAt, &s.ExpiresAt, &s.LastUsedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
