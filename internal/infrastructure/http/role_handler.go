@@ -18,7 +18,7 @@ func NewRoleHandler(roles application.RoleRepository) *RoleHandler {
 func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createRoleRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req createRoleRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *RoleHandler) GrantPermission(w http.ResponseWriter, r *http.Request) {
 
 	var req roleGrantPermissionRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 

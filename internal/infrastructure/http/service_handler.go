@@ -18,7 +18,7 @@ func NewServiceHandler(services application.ServiceRepository) *ServiceHandler {
 func (h *ServiceHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createServiceRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -56,7 +56,7 @@ func (h *ServiceHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req createServiceRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 

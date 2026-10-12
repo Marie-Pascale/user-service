@@ -19,7 +19,7 @@ func NewUserHandler(registerUser *application.RegisterUserUseCase, users applica
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -39,12 +39,12 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	case domain.ProviderGoogle, domain.ProviderFacebook:
 		writeJSON(w, http.StatusNotImplemented, errorResponse{
-			Error: "l'inscription via ce fournisseur n'est pas encore disponible",
+			Error: "sign-up through this provider is not yet available",
 		})
 
 	default:
 		writeJSON(w, http.StatusBadRequest, errorResponse{
-			Error: "auth_method.provider doit etre \"local\" (seul fournisseur supporte pour l'instant)",
+			Error: "auth_method.provider must be \"local\" (only \"local\" provider is currently supported)",
 		})
 	}
 }
@@ -80,7 +80,7 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req updateUserRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 

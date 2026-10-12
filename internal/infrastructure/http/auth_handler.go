@@ -32,7 +32,7 @@ func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 
 	var req setPasswordRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 

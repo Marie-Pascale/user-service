@@ -18,7 +18,7 @@ func NewGroupHandler(groups application.GroupRepository) *GroupHandler {
 func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createGroupRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	var req createGroupRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -92,7 +92,7 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 
 	var req groupAddMemberRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -125,7 +125,7 @@ func (h *GroupHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 
 	var req groupAssignRoleRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 

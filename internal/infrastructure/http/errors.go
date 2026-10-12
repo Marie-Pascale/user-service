@@ -9,6 +9,8 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
+const invalidJSONRequestBody = "invalid JSON request body"
+
 func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrNotFound):

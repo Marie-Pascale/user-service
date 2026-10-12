@@ -60,7 +60,7 @@ func (h *PermissionsHandler) CheckForUser(w http.ResponseWriter, r *http.Request
 
 	permissionKey := r.URL.Query().Get("permission")
 	if permissionKey == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "le parametre de requete permission est requis"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "permission query parameter is required"})
 		return
 	}
 

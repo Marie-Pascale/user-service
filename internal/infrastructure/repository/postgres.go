@@ -43,12 +43,12 @@ func getEnv(key, fallback string) string {
 func NewPool(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, cfg.DSN())
 	if err != nil {
-		return nil, fmt.Errorf("creation du pool de connexions: %w", err)
+		return nil, fmt.Errorf("create connection pool: %w", err)
 	}
 
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("ping de la base de donnees: %w", err)
+		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
 	return pool, nil

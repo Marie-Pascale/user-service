@@ -19,7 +19,7 @@ func NewPermissionHandler(permissions application.PermissionRepository) *Permiss
 func (h *PermissionHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createPermissionRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *PermissionHandler) RegisterSelf(w http.ResponseWriter, r *http.Request)
 
 	var req registerPermissionRequest
 	if err := decodeJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "corps de requete JSON invalide"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: invalidJSONRequestBody})
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *PermissionHandler) RegisterSelf(w http.ResponseWriter, r *http.Request)
 func (h *PermissionHandler) ListByService(w http.ResponseWriter, r *http.Request) {
 	serviceID := r.URL.Query().Get("service_id")
 	if serviceID == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "le parametre de requete service_id est requis"})
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "service_id query parameter is required"})
 		return
 	}
 
