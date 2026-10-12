@@ -6,13 +6,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// Ce fichier contient les structures de serialisation JSON (requetes et
-// reponses), volontairement separees des entites du domaine. Le domaine
-// ne doit rien savoir de JSON ou de HTTP -- c'est cette couche qui traduit
-// entre les deux mondes.
-
-// --- Reponses ------------------------------------------------------------
-
 type userResponse struct {
 	ID            string     `json:"id"`
 	Name          string     `json:"name"`
@@ -39,11 +32,6 @@ func newUserResponse(u *domain.User) userResponse {
 	}
 }
 
-// userBasicInfoResponse expose SEULEMENT id/name/email/status -- utilisee
-// pour la consultation par les services tiers (voir
-// UserHandler.GetBasicInfo). Delibrement plus restreinte que userResponse :
-// RoleIDs/PermissionIDs sont des details RBAC internes a ce service, sans
-// interet ni raison d'etre exposes a un autre service de l'ecosysteme.
 type userBasicInfoResponse struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -55,8 +43,6 @@ func newUserBasicInfoResponse(u *domain.User) userBasicInfoResponse {
 	return userBasicInfoResponse{ID: u.ID, Name: u.Name, Email: u.Email, Status: string(u.Status)}
 }
 
-// authMethodResponse n'expose JAMAIS PasswordHash -- meme hache, il n'a
-// rien a faire dans une reponse HTTP.
 type authMethodResponse struct {
 	ID         string    `json:"id"`
 	UserID     string    `json:"user_id"`
@@ -79,22 +65,12 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-// --- Requetes --------------------------------------------------------
-
-// createUserRequest exige desormais une methode d'authentification des la
-// creation -- plutot que de creer un usager "orphelin" (sans aucun moyen
-// de se connecter) qu'il faudrait completer via un second appel.
 type createUserRequest struct {
 	Name       string            `json:"name"`
 	Email      string            `json:"email"`
 	AuthMethod authMethodRequest `json:"auth_method"`
 }
 
-// authMethodRequest est discriminee par Provider : "local" utilise
-// Password, les fournisseurs tiers utiliseraient ProviderUserID -- mais
-// voir UserHandler.Create pour pourquoi ces derniers sont refuses pour
-// l'instant (aucune verification reelle du jeton tiers n'existe encore).
-// Provider est optionnel et vaut "local" par defaut si omis.
 type authMethodRequest struct {
 	Provider       string `json:"provider,omitempty"`
 	Password       string `json:"password,omitempty"`
@@ -115,17 +91,12 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-// loginResponse retourne le jeton en clair -- comme APIKey pour Service,
-// c'est la SEULE reponse ou ce jeton apparait jamais.
 type loginResponse struct {
 	User      userResponse `json:"user"`
 	Token     string       `json:"token"`
 	ExpiresAt time.Time    `json:"expires_at"`
 }
 
-// serviceResponse expose un service SANS jamais inclure la cle API (meme
-// hachee) -- contrairement a createServiceResponse, qui n'apparait que
-// juste apres la creation ou une rotation.
 type serviceResponse struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -143,12 +114,6 @@ type createServiceRequest struct {
 	Description string `json:"description"`
 }
 
-// createServiceResponse est le SEUL endroit ou APIKey (en clair) apparait
-// jamais dans une reponse HTTP -- exactement comme domain.NewService le
-// garantit deja au niveau du domaine (voir domain/service.go). Reutilisee
-// telle quelle pour la reponse de rotation de cle (meme forme) -- UpdatedAt
-// y a d'ailleurs un interet particulier : une rotation avance ce champ,
-// donc le client voit immediatement QUAND la cle a change.
 type createServiceResponse struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -156,8 +121,6 @@ type createServiceResponse struct {
 	APIKey      string    `json:"api_key"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
-
-// --- Permission ------------------------------------------------------
 
 type permissionResponse struct {
 	ID          string    `json:"id"`
@@ -185,16 +148,10 @@ type createPermissionRequest struct {
 	Description string `json:"description"`
 }
 
-// registerPermissionRequest n'a PAS de champ ServiceID, contrairement a
-// createPermissionRequest -- pour RegisterSelf, le service est TOUJOURS
-// celui authentifie par la cle API (voir PermissionHandler.RegisterSelf),
-// jamais fourni par le client.
 type registerPermissionRequest struct {
 	Key         string `json:"key"`
 	Description string `json:"description"`
 }
-
-// --- Role --------------------------------------------------------------
 
 type roleResponse struct {
 	ID            string    `json:"id"`
@@ -224,8 +181,6 @@ type createRoleRequest struct {
 type roleGrantPermissionRequest struct {
 	PermissionID string `json:"permission_id"`
 }
-
-// --- Group -------------------------------------------------------------
 
 type groupResponse struct {
 	ID            string    `json:"id"`

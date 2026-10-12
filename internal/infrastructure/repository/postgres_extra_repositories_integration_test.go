@@ -11,8 +11,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// --- Service ---------------------------------------------------------
-
 func TestPostgresServiceRepository_CreateAndVerify(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
@@ -60,8 +58,6 @@ func TestPostgresServiceRepository_UpdateAPIKeyHash(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Reproduit exactement la sequence de ServiceHandler.RotateAPIKey :
-	// le domaine mute svc.APIKeyHash EN MEMOIRE, puis on persiste.
 	newKey, err := svc.RotateAPIKey()
 	if err != nil {
 		t.Fatalf("RotateAPIKey: %v", err)
@@ -122,8 +118,6 @@ func TestPostgresServiceRepository_Update(t *testing.T) {
 		t.Error("la cle API existante devrait rester valide apres Update")
 	}
 }
-
-// --- Permission --------------------------------------------------------
 
 func TestPostgresPermissionRepository_CreateAndListByService(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
@@ -200,8 +194,6 @@ func TestPostgresPermissionRepository_GetByServiceIDAndKey(t *testing.T) {
 		}
 	})
 }
-
-// --- Role ----------------------------------------------------------------
 
 func TestPostgresRoleRepository_GrantAndRevokePermission(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
@@ -293,8 +285,6 @@ func TestPostgresRoleRepository_Update(t *testing.T) {
 		t.Errorf("got = %+v, attendu Name=update-role-v2 Description=apres", got)
 	}
 }
-
-// --- Group -----------------------------------------------------------
 
 func TestPostgresGroupRepository_MembersAndRoles(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
@@ -391,8 +381,6 @@ func TestPostgresGroupRepository_Update(t *testing.T) {
 		t.Errorf("got = %+v, attendu Name=update-group-v2 Description=apres", got)
 	}
 }
-
-// --- AuthMethod --------------------------------------------------------
 
 func TestPostgresAuthMethodRepository_LocalAndOAuth(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())

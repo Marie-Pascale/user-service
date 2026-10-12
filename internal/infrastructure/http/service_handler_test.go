@@ -189,7 +189,6 @@ func TestServiceHandler_RotateAPIKey(t *testing.T) {
 		t.Error("la nouvelle cle ne devrait pas etre identique a l'ancienne")
 	}
 
-	// L'ancienne cle ne doit plus fonctionner pour retrouver le service.
 	_, err := repo.GetByAPIKeyHash(ctx, domain.HashToken(oldKey))
 	if err == nil {
 		t.Error("l'ancienne cle ne devrait plus permettre de retrouver le service")

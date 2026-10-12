@@ -26,11 +26,6 @@ func (r *PostgresAuthMethodRepository) Create(ctx context.Context, am *domain.Au
 		INSERT INTO auth_methods (id, user_id, provider, password_hash, provider_user_id, created_at, last_used_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
-	// password_hash et provider_user_id sont mutuellement exclusifs selon le
-	// provider (voir domain.AuthMethod) -- on convertit la chaine vide en
-	// NULL cote SQL plutot que de stocker une chaine vide, pour que la
-	// contrainte UNIQUE(provider, provider_user_id) fonctionne correctement
-	// (NULL n'entre jamais en conflit avec NULL en SQL standard).
 	_, err := r.pool.Exec(ctx, query,
 		am.ID, am.UserID, string(am.Provider),
 		nullIfEmpty(am.PasswordHash), nullIfEmpty(am.ProviderUserID),
@@ -140,8 +135,6 @@ func (r *PostgresAuthMethodRepository) Delete(ctx context.Context, id string) er
 	return nil
 }
 
-// nullIfEmpty convertit une chaine vide en nil, pour que pgx l'insere
-// comme NULL plutot que comme une chaine vide en base.
 func nullIfEmpty(s string) *string {
 	if s == "" {
 		return nil

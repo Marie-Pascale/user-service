@@ -6,7 +6,6 @@ import (
 	"gestionnaire-usagers/internal/application"
 )
 
-// AuthHandler regroupe les endpoints lies a l'authentification.
 type AuthHandler struct {
 	RegisterAuthMethod *application.RegisterAuthMethodUseCase
 	Authenticate       *application.AuthenticateUserUseCase
@@ -28,8 +27,6 @@ func NewAuthHandler(
 	}
 }
 
-// SetPassword gere POST /users/{id}/password -- ajoute une methode
-// d'authentification locale a un usager existant.
 func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 
@@ -48,9 +45,6 @@ func (h *AuthHandler) SetPassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, newAuthMethodResponse(am))
 }
 
-// Login gere POST /auth/login. Verifie les identifiants PUIS cree une
-// session -- deux cas d'usage distincts appeles en sequence (voir
-// CreateSessionUseCase pour pourquoi ils sont separes).
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -77,10 +71,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Logout gere POST /auth/logout -- protegee par UserAuthMiddleware, donc
-// la session a revoquer vient du contexte, jamais d'un ID fourni par le
-// client (sinon n'importe qui pourrait revoquer la session de n'importe
-// qui d'autre en devinant un ID).
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	session, ok := SessionFromContext(r.Context())
 	if !ok {

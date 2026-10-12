@@ -11,9 +11,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// setupPermissionsHandlerTest construit un PermissionsHandler avec des
-// fakes, un usager ayant une permission directe pour un service donne --
-// suffisant pour tester ListForUser et CheckForUser sans base de donnees.
 func setupPermissionsHandlerTest(t *testing.T) (h *PermissionsHandler, user *domain.User, svc *domain.Service, grantedKey string) {
 	t.Helper()
 

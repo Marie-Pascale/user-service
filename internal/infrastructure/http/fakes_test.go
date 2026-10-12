@@ -7,11 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// fakeUserRepo est une implementation en memoire de application.UserRepository,
-// utilisee uniquement dans les tests de ce package (suffixe _test.go).
-// Duplique volontairement le fake equivalent dans internal/application --
-// les tests de packages differents ne peuvent pas partager de code
-// non-exporte en Go.
 type fakeUserRepo struct {
 	byID    map[string]*domain.User
 	byEmail map[string]*domain.User
@@ -127,8 +122,6 @@ func (f *fakeUserRepo) RecordLogin(ctx context.Context, userID string) error {
 
 var _ application.UserRepository = (*fakeUserRepo)(nil)
 
-// fakeAuthMethodRepo est une implementation en memoire de
-// application.AuthMethodRepository.
 type fakeAuthMethodRepo struct {
 	byID   map[string]*domain.AuthMethod
 	byUser map[string][]*domain.AuthMethod
@@ -190,8 +183,6 @@ func (f *fakeAuthMethodRepo) Delete(ctx context.Context, id string) error {
 
 var _ application.AuthMethodRepository = (*fakeAuthMethodRepo)(nil)
 
-// fakeHasher est un domain.PasswordHasher minimal pour les tests --
-// duplique volontairement (voir la note en haut de ce fichier).
 type fakeHasher struct{}
 
 func (fakeHasher) Hash(password string) (string, error) {
@@ -202,12 +193,9 @@ func (fakeHasher) Verify(password, hash string) bool {
 	return "hashed:"+password == hash
 }
 
-// fakeServiceRepo est une implementation en memoire de
-// application.ServiceRepository, pour tester le middleware sans base
-// de donnees.
 type fakeServiceRepo struct {
-	byID       map[string]*domain.Service
-	byKeyHash  map[string]*domain.Service
+	byID      map[string]*domain.Service
+	byKeyHash map[string]*domain.Service
 }
 
 func newFakeServiceRepo() *fakeServiceRepo {
@@ -257,12 +245,6 @@ func (f *fakeServiceRepo) UpdateAPIKeyHash(ctx context.Context, id, newHash stri
 	if !ok {
 		return application.ErrNotFound
 	}
-	// On ne peut PAS se fier a s.APIKeyHash pour savoir quelle entree
-	// retirer de l'index par hash : domain.Service.RotateAPIKey() a deja
-	// mute ce champ EN MEMOIRE avant que ServiceHandler.RotateAPIKey
-	// n'appelle cette methode -- s.APIKeyHash contient donc deja la
-	// NOUVELLE valeur, pas l'ancienne. On retire plutot toute entree de
-	// l'index qui pointe vers CE service, peu importe son hash actuel.
 	for hash, svc := range f.byKeyHash {
 		if svc.ID == id {
 			delete(f.byKeyHash, hash)
@@ -285,9 +267,6 @@ func (f *fakeServiceRepo) Delete(ctx context.Context, id string) error {
 
 var _ application.ServiceRepository = (*fakeServiceRepo)(nil)
 
-// fakeSessionRepo est une implementation en memoire de
-// application.SessionRepository, pour tester UserAuthMiddleware sans
-// base de donnees.
 type fakeSessionRepo struct {
 	byID        map[string]*domain.Session
 	byTokenHash map[string]*domain.Session
@@ -342,7 +321,6 @@ func (f *fakeSessionRepo) DeleteAllForUser(ctx context.Context, userID string) e
 
 var _ application.SessionRepository = (*fakeSessionRepo)(nil)
 
-// fakeRoleRepo est une implementation en memoire de application.RoleRepository.
 type fakeRoleRepo struct {
 	byID map[string]*domain.Role
 }
@@ -408,9 +386,6 @@ func (f *fakeRoleRepo) Delete(ctx context.Context, id string) error {
 
 var _ application.RoleRepository = (*fakeRoleRepo)(nil)
 
-// fakeGroupRepo est une implementation en memoire de application.GroupRepository.
-// Minimal : ListByMemberUserID retourne toujours une liste vide, suffisant
-// pour tester l'autorisation sans impliquer les groupes.
 type fakeGroupRepo struct {
 	byID map[string]*domain.Group
 }
@@ -495,8 +470,6 @@ func (f *fakeGroupRepo) Delete(ctx context.Context, id string) error {
 
 var _ application.GroupRepository = (*fakeGroupRepo)(nil)
 
-// fakePermissionRepo est une implementation en memoire de
-// application.PermissionRepository.
 type fakePermissionRepo struct {
 	byID map[string]*domain.Permission
 }

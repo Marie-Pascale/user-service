@@ -9,11 +9,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// writeError traduit une erreur du domaine ou de la couche application en
-// reponse HTTP appropriee. C'est le SEUL endroit ou cette traduction a
-// lieu -- le domaine et l'application ne connaissent aucun code de statut
-// HTTP, seulement des erreurs Go ordinaires (voir domain/user.go,
-// application/errors.go).
 func writeError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, application.ErrNotFound):
@@ -30,17 +25,11 @@ func writeError(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusBadRequest, errorResponse{Error: err.Error()})
 
 	default:
-		// Une erreur non reconnue (ex: la base de donnees est injoignable)
-		// ne doit jamais fuiter de details techniques au client -- on la
-		// journalise cote serveur, et on renvoie un message generique.
 		log.Printf("erreur interne non geree: %v", err)
 		writeJSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
 	}
 }
 
-// isValidationError regroupe toutes les erreurs de validation exposees par
-// le domaine -- celles qui doivent devenir un 400 Bad Request plutot qu'un
-// 500. A completer au fur et a mesure qu'on ajoute des entites/handlers.
 func isValidationError(err error) bool {
 	return errors.Is(err, domain.ErrEmptyName) ||
 		errors.Is(err, domain.ErrInvalidEmail) ||

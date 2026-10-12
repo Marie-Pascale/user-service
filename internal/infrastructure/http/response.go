@@ -5,8 +5,6 @@ import (
 	"net/http"
 )
 
-// writeJSON ecrit une reponse JSON avec le status donne. Centralise
-// l'entete Content-Type pour ne pas l'oublier dans chaque handler.
 func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -15,10 +13,6 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	}
 }
 
-// decodeJSON decode le corps d'une requete JSON dans dst.
-// DisallowUnknownFields rejette les champs inattendus plutot que de les
-// ignorer silencieusement -- ca attrape les fautes de frappe du client
-// (ex: "emial" au lieu de "email") au lieu de les laisser passer inapercues.
 func decodeJSON(r *http.Request, dst any) error {
 	defer r.Body.Close()
 	dec := json.NewDecoder(r.Body)

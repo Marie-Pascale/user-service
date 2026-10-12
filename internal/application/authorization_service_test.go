@@ -7,8 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// authFixture regroupe les repositories et quelques entites de base
-// partagees par les tests d'AuthorizationService.
 type authFixture struct {
 	users       *fakeUserRepo
 	roles       *fakeRoleRepo
@@ -45,8 +43,6 @@ func newAuthFixture(t *testing.T) *authFixture {
 	return f
 }
 
-// addPermission enregistre une permission pour le service par defaut de la
-// fixture et la retourne.
 func (f *authFixture) addPermission(t *testing.T, key string) *domain.Permission {
 	t.Helper()
 	p, err := domain.NewPermission(domain.NewID(), f.serviceID, key, "")
@@ -125,8 +121,6 @@ func TestAuthorizationService_FiltreParService(t *testing.T) {
 	own := f.addPermission(t, "orders:read")
 	f.user.AssignPermission(own.ID)
 
-	// Permission d'un AUTRE service -- ne devrait jamais apparaitre dans
-	// la resolution pour f.serviceID.
 	other, _ := domain.NewPermission(domain.NewID(), "service-billing", "invoices:read", "")
 	_ = f.permissions.Create(ctx, other)
 	f.user.AssignPermission(other.ID)

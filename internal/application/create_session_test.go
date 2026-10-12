@@ -24,7 +24,6 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 		t.Errorf("UserID = %q, attendu %q", session.UserID, u.ID)
 	}
 
-	// La session doit avoir ete persistee.
 	got, err := sessions.GetByTokenHash(context.Background(), session.TokenHash)
 	if err != nil {
 		t.Fatalf("GetByTokenHash: %v", err)
@@ -33,7 +32,6 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 		t.Errorf("session persistee = %q, attendu %q", got.ID, session.ID)
 	}
 
-	// RecordLogin doit avoir ete appele -- voir domain.User.RecordLogin.
 	updated, err := users.GetByID(context.Background(), u.ID)
 	if err != nil {
 		t.Fatalf("GetByID: %v", err)
@@ -44,9 +42,6 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 }
 
 func TestCreateSessionUseCase_Execute_IgnoresRecordLoginFailure(t *testing.T) {
-	// Un usager inexistant ne devrait PAS faire echouer la creation de
-	// session -- RecordLogin est best-effort (voir le commentaire dans
-	// create_session.go).
 	sessions := newFakeSessionRepo()
 	users := newFakeUserRepo()
 	uc := NewCreateSessionUseCase(sessions, users, time.Hour)

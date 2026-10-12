@@ -6,15 +6,11 @@ import (
 	"time"
 )
 
-// Erreurs de validation du domaine. Elles sont volontairement generiques
-// (pas de code HTTP ici) : c'est a la couche infrastructure de les traduire
-// en reponses HTTP appropriees (ex: 400 Bad Request).
 var (
 	ErrEmptyName    = errors.New("name is required")
 	ErrInvalidEmail = errors.New("invalid email")
 )
 
-// Status represente l'etat du compte d'un usager.
 type Status string
 
 const (
@@ -22,22 +18,6 @@ const (
 	StatusSuspended Status = "suspended"
 )
 
-// User est l'entite centrale du domaine. Elle ne depend d'aucune
-// bibliotheque externe (pas de driver Postgres, pas de net/http) :
-// c'est ce qui la rend testable et reutilisable independamment
-// de la couche de stockage ou de transport.
-//
-// Notez que User ne contient aucune information d'authentification
-// (mot de passe, etc.) -- celle-ci vit dans AuthMethod, une entite
-// separee, pour permettre plusieurs methodes d'authentification par
-// usager (mot de passe local, Google, Facebook...).
-//
-// RoleIDs et PermissionIDs representent les assignations *directes*.
-// Les permissions effectives d'un usager sont la resultante de ses
-// permissions directes + celles de ses roles directs + celles des
-// roles herites de ses groupes. Ce calcul est fait par la couche
-// application (voir AuthorizationService a venir), pas ici : User
-// ne stocke que des IDs, pas les entites Role/Permission completes.
 type User struct {
 	ID            string
 	Name          string
@@ -48,17 +28,9 @@ type User struct {
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
-	// LastLoginAt est nil tant que l'usager ne s'est jamais connecte --
-	// contrairement a CreatedAt/UpdatedAt, ce champ n'a pas de valeur
-	// significative a la creation, d'ou le pointeur plutot qu'un
-	// time.Time nu (qui forcerait une valeur "zero" ambigue avec une
-	// vraie date). Mis a jour via RecordLogin.
 	LastLoginAt *time.Time
 }
 
-// NewUser cree un usager valide ou retourne une erreur de validation.
-// C'est le point d'entree unique pour construire un User : ca garantit
-// qu'aucun usager invalide ne peut exister ailleurs dans le systeme.
 func NewUser(id, name, email string) (*User, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -83,9 +55,6 @@ func NewUser(id, name, email string) (*User, error) {
 	}, nil
 }
 
-// isValidEmail fait une verification simple, pas une validation RFC complete.
-// Suffisant pour un projet d'apprentissage ; a remplacer par une regex plus
-// stricte ou une librairie dediee si le besoin devient reel.
 func isValidEmail(email string) bool {
 	at := strings.Index(email, "@")
 	if at <= 0 || at == len(email)-1 {
@@ -95,18 +64,15 @@ func isValidEmail(email string) bool {
 	return strings.Contains(domain, ".")
 }
 
-// IsActive indique si le compte de l'usager est actif.
 func (u *User) IsActive() bool {
 	return u.Status == StatusActive
 }
 
-// Suspend desactive le compte de l'usager.
 func (u *User) Suspend() {
 	u.Status = StatusSuspended
 	u.UpdatedAt = time.Now().UTC()
 }
 
-// AssignRole assigne un role directement a l'usager, s'il ne l'a pas deja.
 func (u *User) AssignRole(roleID string) {
 	for _, id := range u.RoleIDs {
 		if id == roleID {
@@ -117,8 +83,6 @@ func (u *User) AssignRole(roleID string) {
 	u.UpdatedAt = time.Now().UTC()
 }
 
-// AssignPermission accorde une permission directement a l'usager,
-// en plus de celles heritees de ses roles.
 func (u *User) AssignPermission(permissionID string) {
 	for _, id := range u.PermissionIDs {
 		if id == permissionID {
@@ -129,10 +93,6 @@ func (u *User) AssignPermission(permissionID string) {
 	u.UpdatedAt = time.Now().UTC()
 }
 
-// UpdateProfile modifie le nom et le courriel d'un usager existant, avec
-// la meme validation que NewUser. Centralise cette regle ici plutot que
-// de la dupliquer (ou de reconstruire un User via NewUser, ce qui
-// ecraserait aussi Status/RoleIDs/PermissionIDs/CreatedAt par erreur).
 func (u *User) UpdateProfile(name, email string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -150,12 +110,6 @@ func (u *User) UpdateProfile(name, email string) error {
 	return nil
 }
 
-// RecordLogin met a jour l'horodatage de derniere connexion -- appelee
-// depuis CreateSessionUseCase, PAS depuis AuthenticateUserUseCase :
-// n'importe quelle methode d'authentification qui aboutit a une session
-// (mot de passe local aujourd'hui, Google/Facebook plus tard) doit faire
-// avancer ce champ de la meme facon, sans dupliquer cette logique dans
-// chaque flot d'authentification. Meme patron que AuthMethod.MarkUsed.
 func (u *User) RecordLogin() {
 	now := time.Now().UTC()
 	u.LastLoginAt = &now

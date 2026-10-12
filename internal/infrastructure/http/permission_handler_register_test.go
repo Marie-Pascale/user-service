@@ -11,9 +11,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// withTestService simule ce que ServiceAuthMiddleware ferait normalement --
-// injecte directement un service dans le contexte, pour tester
-// PermissionHandler.RegisterSelf isolement de l'authentification par cle API.
 func withTestService(ctx context.Context, svc *domain.Service) context.Context {
 	return context.WithValue(ctx, serviceContextKey, svc)
 }

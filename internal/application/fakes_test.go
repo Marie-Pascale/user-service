@@ -7,16 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// Ce fichier contient des implementations en memoire des interfaces de
-// repository, utilisees UNIQUEMENT dans les tests de ce package. Elles ne
-// sont jamais compilees dans le binaire final (suffixe _test.go).
-//
-// L'interet : tester la logique des cas d'usage (validation, orchestration,
-// gestion d'erreurs) sans jamais toucher a Postgres -- des tests rapides,
-// deterministes, qui n'ont pas besoin que "make up" tourne.
-
-// --- fakeUserRepo ---------------------------------------------------
-
 type fakeUserRepo struct {
 	byID    map[string]*domain.User
 	byEmail map[string]*domain.User
@@ -126,13 +116,11 @@ func (f *fakeUserRepo) RecordLogin(ctx context.Context, userID string) error {
 	if !ok {
 		return ErrNotFound
 	}
-	u.RecordLogin() // reutilise la methode du domaine plutot que dupliquer sa logique
+	u.RecordLogin()
 	return nil
 }
 
 var _ UserRepository = (*fakeUserRepo)(nil)
-
-// --- fakeAuthMethodRepo ----------------------------------------------
 
 type fakeAuthMethodRepo struct {
 	byID map[string]*domain.AuthMethod
@@ -193,8 +181,6 @@ func (f *fakeAuthMethodRepo) Delete(ctx context.Context, id string) error {
 
 var _ AuthMethodRepository = (*fakeAuthMethodRepo)(nil)
 
-// --- fakePermissionRepo ------------------------------------------------
-
 type fakePermissionRepo struct {
 	byID map[string]*domain.Permission
 }
@@ -254,8 +240,6 @@ func (f *fakePermissionRepo) Delete(ctx context.Context, id string) error {
 }
 
 var _ PermissionRepository = (*fakePermissionRepo)(nil)
-
-// --- fakeRoleRepo ------------------------------------------------------
 
 type fakeRoleRepo struct {
 	byID map[string]*domain.Role
@@ -321,8 +305,6 @@ func (f *fakeRoleRepo) Delete(ctx context.Context, id string) error {
 }
 
 var _ RoleRepository = (*fakeRoleRepo)(nil)
-
-// --- fakeGroupRepo -------------------------------------------------
 
 type fakeGroupRepo struct {
 	byID map[string]*domain.Group
@@ -408,9 +390,6 @@ func (f *fakeGroupRepo) Delete(ctx context.Context, id string) error {
 
 var _ GroupRepository = (*fakeGroupRepo)(nil)
 
-// --- fakeHasher (identique a celui du domaine, duplique ici car les tests
-// de packages differents ne peuvent pas partager de code non-exporte) ---
-
 type fakeHasher struct{}
 
 func (fakeHasher) Hash(password string) (string, error) {
@@ -421,10 +400,8 @@ func (fakeHasher) Verify(password, hash string) bool {
 	return "hashed:"+password == hash
 }
 
-// --- fakeSessionRepo -------------------------------------------------
-
 type fakeSessionRepo struct {
-	byID      map[string]*domain.Session
+	byID        map[string]*domain.Session
 	byTokenHash map[string]*domain.Session
 }
 
@@ -477,11 +454,6 @@ func (f *fakeSessionRepo) DeleteAllForUser(ctx context.Context, userID string) e
 
 var _ SessionRepository = (*fakeSessionRepo)(nil)
 
-// mustNewTestUser cree et persiste un usager valide dans un fakeUserRepo --
-// raccourci pour les tests qui ont besoin d'un usager existant sans que
-// sa construction elle-meme soit le sujet du test. echoue immediatement
-// (Fatalf) si la construction ou la persistance rate, ce qui ne devrait
-// jamais arriver avec des valeurs de test valides.
 func mustNewTestUser(t *testing.T, users *fakeUserRepo, name, email string) *domain.User {
 	t.Helper()
 	u, err := domain.NewUser(domain.NewID(), name, email)

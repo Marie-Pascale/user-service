@@ -95,10 +95,6 @@ func (r *PostgresServiceRepository) Update(ctx context.Context, s *domain.Servic
 	return nil
 }
 
-// UpdateAPIKeyHash met aussi a jour updated_at -- domain.Service.RotateAPIKey()
-// avance deja ce champ en memoire, cette requete synchronise la base pour
-// que ce ne soit pas seulement vrai le temps de la requete en cours (meme
-// remarque que pour RoleRepository.touch/GroupRepository.touch).
 func (r *PostgresServiceRepository) UpdateAPIKeyHash(ctx context.Context, id, newAPIKeyHash string) error {
 	const query = `UPDATE services SET api_key_hash = $2, updated_at = now() WHERE id = $1`
 	tag, err := r.pool.Exec(ctx, query, id, newAPIKeyHash)

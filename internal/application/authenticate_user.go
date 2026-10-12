@@ -9,13 +9,6 @@ import (
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
-// AuthenticateUserUseCase orchestre la connexion par mot de passe local.
-//
-// Note de securite : que l'usager n'existe pas, qu'il n'ait pas de methode
-// locale, ou que le mot de passe soit incorrect -- ces trois cas retournent
-// TOUJOURS la meme erreur ErrInvalidCredentials. Distinguer ces cas dans la
-// reponse permettrait a un attaquant de decouvrir quels courriels sont
-// enregistres (une "enumeration attack").
 type AuthenticateUserUseCase struct {
 	Users       UserRepository
 	AuthMethods AuthMethodRepository
@@ -49,7 +42,7 @@ func (uc *AuthenticateUserUseCase) Execute(ctx context.Context, email, password 
 			continue
 		}
 		if am.Authenticate(password, uc.Hasher) {
-			_ = uc.AuthMethods.MarkUsed(ctx, am.ID) // best-effort, n'invalide pas la connexion si ca echoue
+			_ = uc.AuthMethods.MarkUsed(ctx, am.ID)
 			return u, nil
 		}
 	}

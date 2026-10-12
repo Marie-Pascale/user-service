@@ -11,10 +11,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// newTestRepo ouvre une connexion vers la vraie base Postgres (celle du
-// conteneur docker-compose, via les variables d'environnement) et retourne
-// un repository pret a l'emploi. Chaque test nettoie ses propres donnees
-// via t.Cleanup -- pas de base partagee "sale" entre les tests.
 func newTestRepo(t *testing.T) *PostgresUserRepository {
 	t.Helper()
 

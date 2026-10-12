@@ -49,7 +49,6 @@ func TestRegisterUserUseCase_ExecuteLocal(t *testing.T) {
 			t.Fatalf("erreur = %v, attendu %v", err, domain.ErrEmptyPassword)
 		}
 
-		// L'usager ne devrait pas avoir survecu a l'echec de la 2e etape.
 		_, err = users.GetByEmail(context.Background(), "alice@example.com")
 		if !errors.Is(err, ErrNotFound) {
 			t.Error("l'usager aurait du etre supprime (compensation) apres l'echec de creation du mot de passe")
@@ -70,7 +69,7 @@ func TestRegisterUserUseCase_ExecuteLocal(t *testing.T) {
 		}
 
 		all, _ := authMethods.ListByUserID(context.Background(), "")
-		_ = all // pas d'assertion precise ici, le test cle est ci-dessus
+		_ = all
 	})
 }
 

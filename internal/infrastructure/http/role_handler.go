@@ -7,8 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// RoleHandler regroupe les endpoints lies a Role. Toutes ses routes sont
-// protegees par la permission "roles:manage".
 type RoleHandler struct {
 	Roles application.RoleRepository
 }
@@ -17,7 +15,6 @@ func NewRoleHandler(roles application.RoleRepository) *RoleHandler {
 	return &RoleHandler{Roles: roles}
 }
 
-// Create gere POST /roles
 func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createRoleRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -39,7 +36,6 @@ func (h *RoleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, newRoleResponse(role))
 }
 
-// Get gere GET /roles/{id}
 func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	role, err := h.Roles.GetByID(r.Context(), r.PathValue("id"))
 	if err != nil {
@@ -49,9 +45,6 @@ func (h *RoleHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newRoleResponse(role))
 }
 
-// Update gere PUT /roles/{id} -- modifie Name/Description uniquement.
-// GrantPermission/RevokePermission restent les seules facons de modifier
-// PermissionIDs.
 func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	roleID := r.PathValue("id")
 
@@ -80,7 +73,6 @@ func (h *RoleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newRoleResponse(role))
 }
 
-// List gere GET /roles
 func (h *RoleHandler) List(w http.ResponseWriter, r *http.Request) {
 	roles, err := h.Roles.List(r.Context())
 	if err != nil {
@@ -95,7 +87,6 @@ func (h *RoleHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// GrantPermission gere POST /roles/{id}/permissions
 func (h *RoleHandler) GrantPermission(w http.ResponseWriter, r *http.Request) {
 	roleID := r.PathValue("id")
 
@@ -118,7 +109,6 @@ func (h *RoleHandler) GrantPermission(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newRoleResponse(role))
 }
 
-// RevokePermission gere DELETE /roles/{id}/permissions/{permissionId}
 func (h *RoleHandler) RevokePermission(w http.ResponseWriter, r *http.Request) {
 	roleID := r.PathValue("id")
 	permissionID := r.PathValue("permissionId")
@@ -130,7 +120,6 @@ func (h *RoleHandler) RevokePermission(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Delete gere DELETE /roles/{id}
 func (h *RoleHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.Roles.Delete(r.Context(), r.PathValue("id")); err != nil {
 		writeError(w, err)

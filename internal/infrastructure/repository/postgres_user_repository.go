@@ -11,7 +11,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// PostgresUserRepository implemente application.UserRepository avec pgx.
 type PostgresUserRepository struct {
 	pool *pgxpool.Pool
 }
@@ -20,9 +19,6 @@ func NewPostgresUserRepository(pool *pgxpool.Pool) *PostgresUserRepository {
 	return &PostgresUserRepository{pool: pool}
 }
 
-// verification a la compilation que PostgresUserRepository implemente
-// bien l'interface -- si une methode manque ou a la mauvaise signature,
-// l'erreur apparait ici plutot qu'au moment de l'injecter ailleurs.
 var _ application.UserRepository = (*PostgresUserRepository)(nil)
 
 func (r *PostgresUserRepository) Create(ctx context.Context, u *domain.User) error {
@@ -30,9 +26,6 @@ func (r *PostgresUserRepository) Create(ctx context.Context, u *domain.User) err
 		INSERT INTO users (id, name, email, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	// last_login_at n'est jamais fourni a la creation -- NULL par defaut
-	// (pas de colonne dans l'INSERT), coherent avec User.LastLoginAt qui
-	// vaut toujours nil pour un usager tout juste cree.
 	_, err := r.pool.Exec(ctx, query, u.ID, u.Name, u.Email, string(u.Status), u.CreatedAt, u.UpdatedAt)
 	return err
 }
@@ -55,16 +48,10 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 	return r.scanOne(ctx, query, email)
 }
 
-// scanOne execute une requete retournant au plus une ligne, et hydrate
-// aussi RoleIDs/PermissionIDs depuis les tables de jonction. Factorise
-// GetByID et GetByEmail, qui ne different que par la clause WHERE.
 func (r *PostgresUserRepository) scanOne(ctx context.Context, query string, arg any) (*domain.User, error) {
 	var u domain.User
 	var status string
 
-	// &u.LastLoginAt fonctionne directement avec pgx pour une colonne
-	// nullable scannee dans un champ *time.Time : NULL -> nil, sinon un
-	// *time.Time frais est alloue automatiquement.
 	err := r.pool.QueryRow(ctx, query, arg).Scan(&u.ID, &u.Name, &u.Email, &status, &u.CreatedAt, &u.UpdatedAt, &u.LastLoginAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -87,10 +74,6 @@ func (r *PostgresUserRepository) scanOne(ctx context.Context, query string, arg 
 	return &u, nil
 }
 
-// idsFor lit une colonne d'IDs depuis une table de jonction filtree par
-// user_id. table et column sont toujours des constantes internes au
-// package (jamais fournies par l'appelant exterieur), donc aucun risque
-// d'injection SQL malgre l'interpolation directe dans la requete.
 func (r *PostgresUserRepository) idsFor(ctx context.Context, table, column, userID string) ([]string, error) {
 	query := `SELECT ` + column + ` FROM ` + table + ` WHERE user_id = $1`
 
@@ -123,10 +106,6 @@ func (r *PostgresUserRepository) List(ctx context.Context) ([]*domain.User, erro
 	}
 	defer rows.Close()
 
-	// Note : pour la liste complete, on ne charge pas RoleIDs/PermissionIDs
-	// de chaque usager (ca ferait 2N requetes supplementaires). Ce detail
-	// n'est charge que pour UN usager precis via GetByID/GetByEmail --
-	// c'est la que la resolution de permissions en a besoin.
 	users := []*domain.User{}
 	for rows.Next() {
 		var u domain.User
@@ -193,10 +172,6 @@ func (r *PostgresUserRepository) RevokePermission(ctx context.Context, userID, p
 	return err
 }
 
-// RecordLogin met a jour last_login_at ET updated_at directement en base
-// -- appelee par CreateSessionUseCase a chaque connexion reussie, sans
-// passer par Update (evite un aller-retour GetByID + mutation + Update
-// pour un simple horodatage, meme patron que AuthMethodRepository.MarkUsed).
 func (r *PostgresUserRepository) RecordLogin(ctx context.Context, userID string) error {
 	const query = `UPDATE users SET last_login_at = now(), updated_at = now() WHERE id = $1`
 	tag, err := r.pool.Exec(ctx, query, userID)

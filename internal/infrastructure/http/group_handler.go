@@ -7,8 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// GroupHandler regroupe les endpoints lies a Group. Toutes ses routes
-// sont protegees par la permission "groups:manage".
 type GroupHandler struct {
 	Groups application.GroupRepository
 }
@@ -17,7 +15,6 @@ func NewGroupHandler(groups application.GroupRepository) *GroupHandler {
 	return &GroupHandler{Groups: groups}
 }
 
-// Create gere POST /groups
 func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createGroupRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -39,7 +36,6 @@ func (h *GroupHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, newGroupResponse(g))
 }
 
-// Get gere GET /groups/{id}
 func (h *GroupHandler) Get(w http.ResponseWriter, r *http.Request) {
 	g, err := h.Groups.GetByID(r.Context(), r.PathValue("id"))
 	if err != nil {
@@ -49,9 +45,6 @@ func (h *GroupHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newGroupResponse(g))
 }
 
-// Update gere PUT /groups/{id} -- modifie Name/Description uniquement.
-// AddMember/RemoveMember/AssignRole restent les seules facons de modifier
-// MemberUserIDs/RoleIDs.
 func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 
@@ -80,7 +73,6 @@ func (h *GroupHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newGroupResponse(g))
 }
 
-// List gere GET /groups
 func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 	groups, err := h.Groups.List(r.Context())
 	if err != nil {
@@ -95,7 +87,6 @@ func (h *GroupHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// AddMember gere POST /groups/{id}/members
 func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 
@@ -118,7 +109,6 @@ func (h *GroupHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newGroupResponse(g))
 }
 
-// RemoveMember gere DELETE /groups/{id}/members/{userId}
 func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 	userID := r.PathValue("userId")
@@ -130,7 +120,6 @@ func (h *GroupHandler) RemoveMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// AssignRole gere POST /groups/{id}/roles
 func (h *GroupHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	groupID := r.PathValue("id")
 
@@ -153,7 +142,6 @@ func (h *GroupHandler) AssignRole(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newGroupResponse(g))
 }
 
-// Delete gere DELETE /groups/{id}
 func (h *GroupHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.Groups.Delete(r.Context(), r.PathValue("id")); err != nil {
 		writeError(w, err)

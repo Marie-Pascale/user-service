@@ -118,7 +118,6 @@ func TestUser_AssignRole(t *testing.T) {
 		t.Fatalf("RoleIDs = %v, attendu [\"role-admin\"]", u.RoleIDs)
 	}
 
-	// Assigner le meme role deux fois ne doit pas creer de doublon.
 	u.AssignRole("role-admin")
 	if len(u.RoleIDs) != 1 {
 		t.Errorf("RoleIDs = %v, un role duplique ne devrait pas etre ajoute", u.RoleIDs)
@@ -142,7 +141,7 @@ func TestUser_AssignPermission(t *testing.T) {
 func TestUser_UpdateProfile(t *testing.T) {
 	t.Run("met a jour nom et courriel valides", func(t *testing.T) {
 		u, _ := NewUser("1", "Alice", "alice@example.com")
-		u.AssignRole("role-1") // pour verifier que ca survit a la mise a jour
+		u.AssignRole("role-1")
 
 		err := u.UpdateProfile("Alice Dupont", "ALICE.DUPONT@EXAMPLE.COM")
 		if err != nil {

@@ -10,10 +10,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// UserAuthMiddleware authentifie les requetes provenant d'un USAGER humain
-// (par opposition a ServiceAuthMiddleware, pour les services tiers), via
-// un jeton de session envoye dans l'entete standard "Authorization: Bearer
-// <jeton>". Le jeton est obtenu via POST /auth/login.
 type UserAuthMiddleware struct {
 	Sessions application.SessionRepository
 	Users    application.UserRepository
@@ -23,9 +19,6 @@ func NewUserAuthMiddleware(sessions application.SessionRepository, users applica
 	return &UserAuthMiddleware{Sessions: sessions, Users: users}
 }
 
-// Authenticate enveloppe un handler pour exiger une session valide et non
-// expiree. En cas de succes, l'usager ET sa session sont ajoutes au
-// contexte -- recuperables via UserFromContext et SessionFromContext.
 func (m *UserAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		plainToken, ok := extractBearerToken(r)
@@ -50,19 +43,11 @@ func (m *UserAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		}
 
 		if session.IsExpired() {
-			// Nettoyage opportuniste : une session expiree ne sert plus a
-			// rien, autant la supprimer maintenant plutot que d'attendre
-			// une purge periodique separee. On ignore l'erreur -- ce n'est
-			// pas grave si ca echoue, une prochaine requete la retentera.
 			_ = m.Sessions.Delete(r.Context(), session.ID)
 			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "session expired"})
 			return
 		}
 
-		// Detection de vol de jeton : si l'IP ET le User-Agent de CETTE
-		// requete different TOUS LES DEUX de ceux enregistres a la creation
-		// de la session, on revoque immediatement -- voir la doc complete
-		// de Session.IsSuspicious (compromis assume, limites connues).
 		if session.IsSuspicious(clientIP(r), r.Header.Get("User-Agent")) {
 			_ = m.Sessions.Delete(r.Context(), session.ID)
 			writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "session revoked: suspicious activity detected"})
@@ -75,8 +60,6 @@ func (m *UserAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		// Best-effort : on ne bloque pas la requete si la mise a jour de
-		// LastUsedAt echoue, ce n'est pas critique.
 		_ = m.Sessions.Touch(r.Context(), session.ID)
 
 		ctx := context.WithValue(r.Context(), userContextKey, user)
@@ -85,8 +68,6 @@ func (m *UserAuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-// extractBearerToken lit le jeton depuis "Authorization: Bearer <jeton>".
-// Retourne ok=false si l'entete est absent ou mal forme.
 func extractBearerToken(r *http.Request) (token string, ok bool) {
 	header := r.Header.Get("Authorization")
 	const prefix = "Bearer "
@@ -100,14 +81,11 @@ func extractBearerToken(r *http.Request) (token string, ok bool) {
 	return token, true
 }
 
-// UserFromContext recupere l'usager authentifie par le middleware.
 func UserFromContext(ctx context.Context) (*domain.User, bool) {
 	u, ok := ctx.Value(userContextKey).(*domain.User)
 	return u, ok
 }
 
-// SessionFromContext recupere la session authentifiee par le middleware --
-// utile notamment pour Logout, qui a besoin de l'ID de session a revoquer.
 func SessionFromContext(ctx context.Context) (*domain.Session, bool) {
 	s, ok := ctx.Value(sessionContextKey).(*domain.Session)
 	return s, ok

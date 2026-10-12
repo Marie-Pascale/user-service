@@ -48,10 +48,6 @@ func (r *PostgresGroupRepository) GetByID(ctx context.Context, id string) (*doma
 	return &g, nil
 }
 
-// hydrate remplit MemberUserIDs et RoleIDs a partir des tables de jonction.
-// Factorise GetByID et ListByMemberUserID, qui ont toutes deux besoin de
-// ces informations completes (contrairement a List, qui reste volontairement
-// legere -- voir la note dans List).
 func (r *PostgresGroupRepository) hydrate(ctx context.Context, g *domain.Group) error {
 	members, err := r.idsFor(ctx, "group_members", "user_id", g.ID)
 	if err != nil {
@@ -68,8 +64,6 @@ func (r *PostgresGroupRepository) hydrate(ctx context.Context, g *domain.Group) 
 	return nil
 }
 
-// ListByMemberUserID retourne les groupes dont l'usager est membre, avec
-// leurs roles herites deja charges -- utilise par AuthorizationService.
 func (r *PostgresGroupRepository) ListByMemberUserID(ctx context.Context, userID string) ([]*domain.Group, error) {
 	const query = `
 		SELECT g.id, g.name, g.description, g.created_at, g.updated_at
@@ -156,9 +150,6 @@ func (r *PostgresGroupRepository) Update(ctx context.Context, g *domain.Group) e
 	return nil
 }
 
-// AddMember insere dans la table de jonction ET met a jour
-// groups.updated_at -- sans ca, updated_at resterait perime en base par
-// rapport a la mutation deja faite en memoire par domain.Group.AddMember.
 func (r *PostgresGroupRepository) AddMember(ctx context.Context, groupID, userID string) error {
 	const insertQuery = `
 		INSERT INTO group_members (group_id, user_id)
@@ -171,7 +162,6 @@ func (r *PostgresGroupRepository) AddMember(ctx context.Context, groupID, userID
 	return r.touch(ctx, groupID)
 }
 
-// RemoveMember -- meme remarque que AddMember au sujet de updated_at.
 func (r *PostgresGroupRepository) RemoveMember(ctx context.Context, groupID, userID string) error {
 	const deleteQuery = `DELETE FROM group_members WHERE group_id = $1 AND user_id = $2`
 	if _, err := r.pool.Exec(ctx, deleteQuery, groupID, userID); err != nil {
@@ -180,7 +170,6 @@ func (r *PostgresGroupRepository) RemoveMember(ctx context.Context, groupID, use
 	return r.touch(ctx, groupID)
 }
 
-// AssignRole -- meme remarque que AddMember au sujet de updated_at.
 func (r *PostgresGroupRepository) AssignRole(ctx context.Context, groupID, roleID string) error {
 	const insertQuery = `
 		INSERT INTO group_roles (group_id, role_id)
@@ -193,11 +182,6 @@ func (r *PostgresGroupRepository) AssignRole(ctx context.Context, groupID, roleI
 	return r.touch(ctx, groupID)
 }
 
-// touch met a jour updated_at a l'instant present. N'echoue pas si le
-// groupe n'existe plus (RowsAffected == 0 ignore) -- l'operation
-// principale (AddMember/RemoveMember/AssignRole) a deja reussi a ce
-// stade, pas la peine de faire echouer toute l'operation pour cette
-// seule mise a jour de metadonnee.
 func (r *PostgresGroupRepository) touch(ctx context.Context, groupID string) error {
 	const query = `UPDATE groups SET updated_at = now() WHERE id = $1`
 	_, err := r.pool.Exec(ctx, query, groupID)

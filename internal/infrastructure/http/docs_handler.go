@@ -2,18 +2,11 @@ package httpapi
 
 import "net/http"
 
-// specHandler sert le fichier openapi.yaml a la racine du projet tel quel.
-// Le chemin est relatif au repertoire de travail du processus (WORKDIR
-// /app dans le Dockerfile), ou se trouve deja le fichier grace au volume
-// monte par docker-compose.
 func specHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	http.ServeFile(w, r, "openapi.yaml")
 }
 
-// docsHandler sert une page HTML minimale chargeant Swagger UI depuis un
-// CDN, pointee vers /openapi.yaml. Pas besoin de vendre/embarquer les
-// fichiers de Swagger UI dans le projet -- juste cette page statique.
 func docsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_, _ = w.Write([]byte(docsHTML))

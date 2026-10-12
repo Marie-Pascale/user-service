@@ -177,7 +177,7 @@ func TestUserHandler_GetBasicInfo(t *testing.T) {
 	t.Run("200 avec seulement id/name/email/status", func(t *testing.T) {
 		h, repo := newTestUserHandler()
 		u := mustNewUser(t, "Alice", "alice@example.com")
-		u.AssignRole("role-secret") // pour verifier que ca NE fuite PAS dans la reponse
+		u.AssignRole("role-secret")
 		_ = repo.Create(context.Background(), u)
 
 		svc, _, _ := domain.NewService(domain.NewID(), "orders-service", "")
@@ -258,9 +258,6 @@ func TestUserHandler_Delete(t *testing.T) {
 	})
 }
 
-// mustNewUser est un raccourci pour les tests -- echoue immediatement (via
-// Fatalf) si la construction rate, ce qui ne devrait jamais arriver avec
-// des valeurs de test valides.
 func mustNewUser(t *testing.T, name, email string) *domain.User {
 	t.Helper()
 	u, err := domain.NewUser(domain.NewID(), name, email)

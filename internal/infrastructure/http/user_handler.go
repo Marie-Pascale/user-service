@@ -7,9 +7,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// UserHandler regroupe les endpoints lies a User. Il ne connait que des
-// interfaces (les cas d'usage, l'interface UserRepository pour les
-// lectures simples) -- jamais PostgresUserRepository directement.
 type UserHandler struct {
 	RegisterUser *application.RegisterUserUseCase
 	Users        application.UserRepository
@@ -19,21 +16,6 @@ func NewUserHandler(registerUser *application.RegisterUserUseCase, users applica
 	return &UserHandler{RegisterUser: registerUser, Users: users}
 }
 
-// Create gere POST /users. La methode d'authentification est fournie DES
-// LA CREATION -- plus d'usager "orphelin" sans aucun moyen de se
-// connecter (voir RegisterUserUseCase).
-//
-// auth_method.provider est optionnel et vaut "local" par defaut -- le cas
-// le plus courant n'a donc pas besoin de le preciser explicitement.
-//
-// Seul le provider "local" est accepte pour l'instant. Les fournisseurs
-// tiers (Google, Facebook) sont volontairement refuses ici : accepter un
-// "provider_user_id" venant directement du client, sans jamais verifier
-// aupres du fournisseur que ce jeton/identifiant est authentique,
-// permettrait a n'importe qui de pretendre etre n'importe quel compte
-// Google. RegisterUserUseCase.ExecuteOAuth existe deja et fonctionne --
-// il attend seulement un vrai flot de verification OAuth en amont
-// (echange de code, validation de jeton signe) avant d'etre branche ici.
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createUserRequest
 	if err := decodeJSON(r, &req); err != nil {
@@ -67,7 +49,6 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Get gere GET /users/{id}
 func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -80,7 +61,6 @@ func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newUserResponse(u))
 }
 
-// List gere GET /users
 func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	users, err := h.Users.List(r.Context())
 	if err != nil {
@@ -95,7 +75,6 @@ func (h *UserHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// Update gere PUT /users/{id}
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -124,7 +103,6 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newUserResponse(u))
 }
 
-// Delete gere DELETE /users/{id}
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 
@@ -136,11 +114,6 @@ func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Me gere GET /me -- protegee par UserAuthMiddleware. C'est l'endpoint
-// evoque tout au debut du projet : un usager peut voir SON PROPRE profil
-// sans connaitre (ni avoir besoin de connaitre) son propre ID -- celui-ci
-// vient du contexte, pose par le middleware a partir de la session, jamais
-// d'un parametre d'URL.
 func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	u, ok := UserFromContext(r.Context())
 	if !ok {
@@ -150,23 +123,8 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, newUserResponse(u))
 }
 
-// GetBasicInfo gere GET /users/{id}/profile -- protegee par
-// ServiceAuthMiddleware (cle API), PAS par session usager. Permet a un
-// service tiers de l'ecosysteme de lire les informations de base d'un
-// usager (id/name/email/status) pour son propre usage.
-//
-// Retourne DELIBEREMENT moins de champs que Get/Me (voir
-// userBasicInfoResponse) : RoleIDs/PermissionIDs sont des details RBAC
-// internes a ce service, sans interet pour un autre service.
-//
-// Meme modele de confiance que GET /users/{id}/permissions : n'importe
-// quel service avec une cle API valide peut consulter, sans permission
-// additionnelle -- a durcir plus tard (une permission dediee, ex.
-// "users:profile:read") si le besoin de restreindre davantage se presente.
 func (h *UserHandler) GetBasicInfo(w http.ResponseWriter, r *http.Request) {
 	if _, ok := ServiceFromContext(r.Context()); !ok {
-		// Ne devrait jamais arriver si les routes sont cablees correctement
-		// (voir router.go) -- le middleware doit toujours s'executer avant.
 		writeJSON(w, http.StatusUnauthorized, errorResponse{Error: "unauthenticated service"})
 		return
 	}

@@ -10,9 +10,6 @@ import (
 	"gestionnaire-usagers/internal/domain"
 )
 
-// setupAuthzTest construit un AuthorizationMiddleware avec des fakes, et
-// un usager "admin" possedant permissionKey via un role -- pour tester
-// aussi bien le chemin "autorise via permission" que "refuse".
 func setupAuthzTest(t *testing.T, permissionKey string) (authz *AuthorizationMiddleware, adminUser, plainUser *domain.User) {
 	t.Helper()
 
@@ -138,9 +135,6 @@ func TestAuthorizationMiddleware_RequireSelfOrPermission(t *testing.T) {
 	})
 }
 
-// withTestUser simule ce que UserAuthMiddleware ferait normalement --
-// injecte directement un usager dans le contexte, pour tester
-// AuthorizationMiddleware isolement de l'authentification.
 func withTestUser(ctx context.Context, u *domain.User) context.Context {
 	return context.WithValue(ctx, userContextKey, u)
 }

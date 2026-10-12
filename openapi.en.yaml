@@ -1,0 +1,1468 @@
+openapi: 3.0.3
+info:
+  title: User Manager
+  description: 'User management API with authentication (local and third-party coming
+    soon), and an RBAC system (roles, groups, permissions) allowing third-party ecosystem
+    services to consult the permissions granted to a user.
+
+
+    **Two distinct authentication mechanisms**:
+    - Human users: opaque session (`Authorization: ******`), obtained via `POST /auth/login`
+    - Third-party services: API key (`X-API-Key: <key>`), obtained via `POST /services`
+
+
+    **Authorization**: the user manager treats itself as a service in the RBAC system
+    (see `SelfServiceID` in code). Protected user routes follow the "self-or-permission"
+    rule: a user can always act on their own account; acting on another user''s account
+    requires the corresponding permission (typically via the "admin" role, assignable
+    with `make grant-admin`).'
+  version: 0.12.0
+
+servers:
+- url: http://localhost:8080
+  description: Local development environment (docker compose)
+
+tags:
+- name: users
+  description: User management (CRUD)
+- name: authentication
+  description: Login, logout, password
+- name: services
+  description: Third-party ecosystem services
+- name: permissions
+  description: Consulting permissions by third-party services
+- name: rbac
+  description: Administrative management of permissions, roles, and groups
+- name: health
+  description: Server availability check
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Checks that the server is responding
+      security: []
+      responses:
+        '200':
+          description: The server is functioning
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /users:
+    post:
+      tags:
+      - users
+      summary: Creates a user, with their first authentication method
+      description: 'Open route (self-registration) -- does not require authentication,
+        unlike other user routes. Only `auth_method.provider = "local"` is accepted
+        for now: third-party providers (Google, Facebook) are not yet verified on
+        the server and are therefore rejected (501) rather than accepting an unverified
+        third-party identifier.'
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: This email is already in use
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '501':
+          description: Recognized third-party provider but not yet supported (google,
+            facebook)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+      - users
+      summary: Lists all users
+      description: Requires the `users:read:any` permission (typically via the admin
+        role).
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /users/{id}:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+      - users
+      summary: Retrieves a user by ID
+      description: Authorized if the ID matches the connected user (their own profile),
+        OR if the connected user has the `users:read:any` permission.
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The requested user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - users
+      summary: Updates a user's name and email
+      description: Authorized if the ID matches the connected user, OR if the connected
+        user has the `users:write:any` permission.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - users
+      summary: Deletes a user
+      description: Authorized if the ID matches the connected user, OR if the connected
+        user has the `users:delete:any` permission.
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: User deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{id}/password:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    post:
+      tags:
+      - authentication
+      summary: Sets a user's local password
+      description: Creates (or replaces) this user's local authentication method.
+        Authorized if the ID matches the connected user, OR if the connected user
+        has the `users:write:any` permission.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetPasswordRequest'
+      responses:
+        '201':
+          description: Authentication method created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMethod'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{id}/profile:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+      - permissions
+      summary: Basic user information, for the authenticated service
+      description: 'Reserved for third-party ecosystem services, authenticated by
+        API key. Deliberately returns far fewer fields than GET /me or the user version
+        of GET /users/{id}: only id/name/email/status -- never role_ids/permission_ids,
+        which are internal RBAC details of no interest to another service.
+
+
+        Same trust model as GET /users/{id}/permissions: any service with a valid
+        API key can consult it, without additional permission.'
+      security:
+      - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Basic user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserBasicInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{id}/permissions:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+      - permissions
+      summary: Effective permissions of a user, for the authenticated service
+      description: Reserved for third-party ecosystem services, authenticated by API
+        key. The service ID comes EXCLUSIVELY from the provided API key -- never from
+        a request parameter -- so a service can never see the permissions defined
+        by another service.
+      security:
+      - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Effective permissions (direct + via roles + via groups)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{id}/permissions/check:
+    parameters:
+    - $ref: '#/components/parameters/UserId'
+    get:
+      tags:
+      - permissions
+      summary: Checks whether a user has a specific permission, for the authenticated
+        service
+      description: 'Shortcut compared to GET /users/{id}/permissions: instead of fetching
+        the whole list and searching yourself, a service directly asks, "does this
+        user have THIS permission?" -- boolean response. Useful for synchronous verification
+        before executing an action.
+
+
+        Same guarantees as GET /users/{id}/permissions: the service ID comes EXCLUSIVELY
+        from the API key, never the request -- therefore a service can never verify
+        a permission on behalf of another service.'
+      security:
+      - ApiKeyAuth: []
+      parameters:
+      - name: permission
+        in: query
+        required: true
+        description: The permission key to check (e.g. "orders:read").
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Verification result (allowed may be true or false -- this is
+            not an error)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckPermissionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /auth/login:
+    post:
+      tags:
+      - authentication
+      summary: Password login
+      description: Verifies the credentials and creates a new session.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /auth/logout:
+    post:
+      tags:
+      - authentication
+      summary: Revokes the current session
+      description: Immediate and definitive logout -- unlike a JWT, an opaque session
+        can be revoked before its natural expiration.
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me:
+    get:
+      tags:
+      - users
+      summary: Profile of the currently connected user
+      description: The user ID comes from the session, never from a URL parameter.
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The profile of the connected user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /services:
+    post:
+      tags:
+      - services
+      summary: Creates a third-party ecosystem service
+      description: Requires the `services:create` permission (typically via the admin
+        role). Returns the API key in plain text -- displayed ONLY once, never recoverable
+        afterwards. Store it immediately on the client side.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+      responses:
+        '201':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateServiceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - services
+      summary: Lists all third-party services
+      description: Requires the `services:manage` permission. Never returns the API
+        key (not even hashed).
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /services/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - services
+      summary: Retrieves a service by ID
+      description: Requires the `services:manage` permission. Never returns the API
+        key (not even hashed).
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The requested service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - services
+      summary: Modifies a service's name and description
+      description: Requires the `services:manage` permission. Never modifies the API
+        key -- see POST /services/{id}/rotate-key for that.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+      responses:
+        '200':
+          description: Service updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - services
+      summary: Deletes a service
+      description: Requires the `services:manage` permission.
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: Service deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /services/{id}/rotate-key:
+    post:
+      tags:
+      - services
+      summary: Rotates a service's API key, invalidating the old one immediately
+      description: Requires the `services:manage` permission. Returns the new key
+        in plain text -- displayed ONLY once, like during creation.
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: New API key generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateServiceResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /permissions:
+    post:
+      tags:
+      - rbac
+      summary: Creates a permission
+      description: Requires the `permissions:manage` permission.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePermissionRequest'
+      responses:
+        '201':
+          description: Permission created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - rbac
+      summary: Lists the permissions of a service
+      description: Requires the `permissions:manage` permission. The `service_id`
+        parameter is required.
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: service_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Permissions of the requested service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Permission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /permissions/self:
+    post:
+      tags:
+      - permissions
+      summary: A third-party service registers one of its permissions
+      description: 'Protected by API key (X-API-Key), NOT by a user session -- a third-party
+        ecosystem service registers its own permissions without human admin intervention.
+        The service ID comes EXCLUSIVELY from the provided API key, never from the
+        request body -- so a service can never register a permission on behalf of
+        another service.
+
+
+        Idempotent: calling twice with the same key returns the existing permission
+        (200) rather than failing -- useful for automatic registration on each service
+        startup.'
+      security:
+      - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPermissionRequest'
+      responses:
+        '200':
+          description: The permission already existed for this service -- returned
+            as is
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '201':
+          description: Permission created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /permissions/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - rbac
+      summary: Retrieves a permission by ID
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The requested permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - rbac
+      summary: Deletes a permission
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: Permission deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /roles:
+    post:
+      tags:
+      - rbac
+      summary: Creates a role
+      description: Requires the `roles:manage` permission.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '201':
+          description: Role created (without permissions initially)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - rbac
+      summary: Lists all roles
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /roles/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - rbac
+      summary: Retrieves a role by ID (with its permissions)
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The requested role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - rbac
+      summary: Modifies a role's name and description
+      description: Requires the `roles:manage` permission. Never modifies PermissionIDs
+        -- see POST/DELETE /roles/{id}/permissions for that.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleRequest'
+      responses:
+        '200':
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - rbac
+      summary: Deletes a role
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: Role deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /roles/{id}/permissions:
+    post:
+      tags:
+      - rbac
+      summary: Grants a permission to a role
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - permission_id
+              properties:
+                permission_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: The role was updated, with the new permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /roles/{id}/permissions/{permissionId}:
+    delete:
+      tags:
+      - rbac
+      summary: Revokes a permission from a role
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Permission revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /groups:
+    post:
+      tags:
+      - rbac
+      summary: Creates a group
+      description: Requires the `groups:manage` permission.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupRequest'
+      responses:
+        '201':
+          description: Group created (empty at first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      tags:
+      - rbac
+      summary: Lists all groups
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /groups/{id}:
+    parameters:
+    - name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - rbac
+      summary: Retrieves a group by ID (members + roles)
+      security:
+      - SessionAuth: []
+      responses:
+        '200':
+          description: The requested group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags:
+      - rbac
+      summary: Modifies a group's name and description
+      description: Requires the `groups:manage` permission. Never modifies members
+        or roles -- see the /members and /roles sub-routes for that.
+      security:
+      - SessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupRequest'
+      responses:
+        '200':
+          description: Group updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags:
+      - rbac
+      summary: Deletes a group
+      security:
+      - SessionAuth: []
+      responses:
+        '204':
+          description: Group deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /groups/{id}/members:
+    post:
+      tags:
+      - rbac
+      summary: Adds a member to the group
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: The group was updated, with the new member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /groups/{id}/members/{userId}:
+    delete:
+      tags:
+      - rbac
+      summary: Removes a member from the group
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Member removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /groups/{id}/roles:
+    post:
+      tags:
+      - rbac
+      summary: Assigns a role to the group (inherited by all its members)
+      security:
+      - SessionAuth: []
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - role_id
+              properties:
+                role_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: The group was updated, with the new role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    UserId:
+      name: id
+      in: path
+      required: true
+      description: UUID identifier of the user
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Invalid request (validation failed)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Authenticated, but insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key of a third-party service, obtained via POST /services.
+    SessionAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+      description: 'Opaque session token (not a JWT), obtained via POST /auth/login.
+        Sent in the "Authorization: ******" header.'
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Alice Tremblay
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+          - active
+          - suspended
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        permission_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: null while the user has never logged in. Updated on EVERY successful
+            login (POST /auth/login), regardless of the authentication method -- see
+            CreateSessionUseCase.
+    UserBasicInfo:
+      type: object
+      description: Restricted version of User, for consultation by third-party services
+        -- never role_ids/permission_ids.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Alice Tremblay
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum:
+          - active
+          - suspended
+    AuthMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        provider:
+          type: string
+          enum:
+          - local
+          - google
+          - facebook
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+    PermissionsResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        permissions:
+          type: array
+          items:
+            type: string
+          example:
+          - orders:read
+          - orders:write
+    CheckPermissionResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        permission:
+          type: string
+          example: orders:read
+        allowed:
+          type: boolean
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+    CreateUserRequest:
+      type: object
+      required:
+      - name
+      - email
+      - auth_method
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        auth_method:
+          $ref: '#/components/schemas/AuthMethodRequest'
+    AuthMethodRequest:
+      type: object
+      description: Discriminated by `provider`, which is OPTIONAL and defaults to
+        "local" when omitted -- the most common case therefore does not need to specify
+        it. For "local", `password` is required, `provider_user_id` does not apply.
+        For "google"/"facebook" (not yet active on the server, see POST /users), `provider_user_id`
+        would be required instead of `password`.
+      properties:
+        provider:
+          type: string
+          enum:
+          - local
+          - google
+          - facebook
+          default: local
+        password:
+          type: string
+          format: password
+          description: Required if provider = "local" (or omitted). Ignored for other
+            providers.
+        provider_user_id:
+          type: string
+          description: Required if provider = "google" or "facebook" (not active for
+            now). Optional/absent for "local".
+    UpdateUserRequest:
+      type: object
+      required:
+      - name
+      - email
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+    SetPasswordRequest:
+      type: object
+      required:
+      - password
+      properties:
+        password:
+          type: string
+          format: password
+    LoginRequest:
+      type: object
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    LoginResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: Session token in plain text -- appears only in this response.
+        expires_at:
+          type: string
+          format: date-time
+    Service:
+      type: object
+      description: Never contains the API key, even hashed -- see CreateServiceResponse
+        for the only response that exposes it.
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: Also updated after POST /services/{id}/rotate-key, not only
+            PUT /services/{id}.
+    CreateServiceRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    CreateServiceResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        api_key:
+          type: string
+          description: API key in plain text -- appears only in this response.
+        updated_at:
+          type: string
+          format: date-time
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        service_id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          example: orders:read
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreatePermissionRequest:
+      type: object
+      required:
+      - service_id
+      - key
+      properties:
+        service_id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        description:
+          type: string
+    RegisterPermissionRequest:
+      type: object
+      required:
+      - key
+      description: No service_id -- always that of the service authenticated by API
+        key.
+      properties:
+        key:
+          type: string
+        description:
+          type: string
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        permission_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: Also updated by POST/DELETE /roles/{id}/permissions, not only
+            PUT /roles/{id}.
+    CreateRoleRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        member_user_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        role_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          description: Also updated by the /members and /roles sub-routes, not only
+            PUT /groups/{id}.
+    CreateGroupRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string

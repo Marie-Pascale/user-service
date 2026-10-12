@@ -2,9 +2,6 @@ package domain
 
 import "testing"
 
-// fakeHasher est un PasswordHasher minimal pour les tests du domaine.
-// On ne veut PAS dependre de bcrypt ici : le domaine doit rester
-// testable sans aucune dependance externe.
 type fakeHasher struct{}
 
 func (fakeHasher) Hash(password string) (string, error) {

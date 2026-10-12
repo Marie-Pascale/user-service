@@ -43,7 +43,6 @@ func TestRole_GrantAndRevokePermission(t *testing.T) {
 		t.Error("UpdatedAt devrait avancer apres GrantPermission")
 	}
 
-	// Accorder deux fois ne doit pas creer de doublon.
 	r.GrantPermission("perm-orders-read")
 	if len(r.PermissionIDs) != 1 {
 		t.Errorf("PermissionIDs = %v, une permission dupliquee ne devrait pas etre ajoutee", r.PermissionIDs)
@@ -58,7 +57,7 @@ func TestRole_GrantAndRevokePermission(t *testing.T) {
 func TestRole_UpdateDetails(t *testing.T) {
 	t.Run("met a jour nom et description", func(t *testing.T) {
 		r, _ := NewRole("1", "support-agent", "ancienne description")
-		r.GrantPermission("perm-1") // pour verifier que ca survit a la mise a jour
+		r.GrantPermission("perm-1")
 
 		err := r.UpdateDetails("support-agent-senior", "nouvelle description")
 		if err != nil {

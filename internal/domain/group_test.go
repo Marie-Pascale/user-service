@@ -43,7 +43,6 @@ func TestGroup_Membership(t *testing.T) {
 		t.Error("UpdatedAt devrait avancer apres AddMember")
 	}
 
-	// Ajouter deux fois ne doit pas creer de doublon.
 	g.AddMember("user-1")
 	if len(g.MemberUserIDs) != 1 {
 		t.Errorf("MemberUserIDs = %v, un membre duplique ne devrait pas etre ajoute", g.MemberUserIDs)

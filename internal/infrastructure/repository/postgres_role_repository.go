@@ -78,9 +78,6 @@ func (r *PostgresRoleRepository) List(ctx context.Context) ([]*domain.Role, erro
 	}
 	defer rows.Close()
 
-	// Note : comme pour User.List, on ne charge pas PermissionIDs pour
-	// chaque role ici (evite les N+1 requetes). GetByID s'en charge pour
-	// UN role precis.
 	roles := []*domain.Role{}
 	for rows.Next() {
 		var role domain.Role
@@ -104,9 +101,6 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, role *domain.Role) 
 	return nil
 }
 
-// GrantPermission insere dans la table de jonction ET met a jour
-// roles.updated_at -- sans ca, updated_at resterait perime en base par
-// rapport a la mutation deja faite en memoire par domain.Role.GrantPermission.
 func (r *PostgresRoleRepository) GrantPermission(ctx context.Context, roleID, permissionID string) error {
 	const insertQuery = `
 		INSERT INTO role_permissions (role_id, permission_id)
@@ -119,7 +113,6 @@ func (r *PostgresRoleRepository) GrantPermission(ctx context.Context, roleID, pe
 	return r.touch(ctx, roleID)
 }
 
-// RevokePermission -- meme remarque que GrantPermission au sujet de updated_at.
 func (r *PostgresRoleRepository) RevokePermission(ctx context.Context, roleID, permissionID string) error {
 	const deleteQuery = `DELETE FROM role_permissions WHERE role_id = $1 AND permission_id = $2`
 	if _, err := r.pool.Exec(ctx, deleteQuery, roleID, permissionID); err != nil {
@@ -128,11 +121,6 @@ func (r *PostgresRoleRepository) RevokePermission(ctx context.Context, roleID, p
 	return r.touch(ctx, roleID)
 }
 
-// touch met a jour updated_at a l'instant present. N'echoue pas si le
-// role n'existe plus (RowsAffected == 0 ignore) -- GrantPermission/
-// RevokePermission ont deja reussi leur propre operation a ce stade, pas
-// la peine de faire echouer toute l'operation pour cette seule mise a jour
-// de metadonnee.
 func (r *PostgresRoleRepository) touch(ctx context.Context, roleID string) error {
 	const query = `UPDATE roles SET updated_at = now() WHERE id = $1`
 	_, err := r.pool.Exec(ctx, query, roleID)

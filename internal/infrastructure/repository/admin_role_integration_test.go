@@ -9,17 +9,6 @@ import (
 	"gestionnaire-usagers/internal/application"
 )
 
-// TestAdminRole_HasAllApplicationPermissions verifie que le role admin,
-// tel que seme par les migrations (000013, 000014, 000015...), possede
-// bien CHAQUE permission listee dans application.AllPermissionKeys.
-//
-// Sans ce test, un scenario plausible : quelqu'un ajoute une nouvelle
-// route protegee par une nouvelle permission (ex: PermSomethingNew), mais
-// oublie d'ecrire la migration qui l'accorde au role admin. Le code
-// compile, les autres tests passent, et le bug ne se revele qu'en
-// production quand un admin decouvre qu'il n'a soudain plus acces a une
-// fonctionnalite -- exactement le genre de regression silencieuse que ce
-// test est concu pour attraper immediatement.
 func TestAdminRole_HasAllApplicationPermissions(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {

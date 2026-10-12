@@ -22,7 +22,6 @@ func TestCreateUserUseCase_Execute(t *testing.T) {
 			t.Errorf("Email = %q, attendu %q", u.Email, "alice@example.com")
 		}
 
-		// Persiste ?
 		got, err := uc.Users.GetByID(ctx, u.ID)
 		if err != nil {
 			t.Fatalf("l'usager devrait etre persiste: %v", err)

@@ -14,16 +14,8 @@ import (
 	"gestionnaire-usagers/internal/infrastructure/security"
 )
 
-// sessionTTL controle la duree de vie d'une session usager. Fixe en dur
-// pour l'instant -- pourrait devenir une variable d'environnement si le
-// besoin de le configurer par environnement (dev/prod) se presente.
 const sessionTTL = 24 * time.Hour
 
-// main est la racine de composition (composition root) : le SEUL endroit
-// du projet ou les types concrets (PostgresUserRepository, BcryptHasher...)
-// sont references directement. Tout le reste du code (application,
-// httpapi) ne connait que des interfaces -- voir la discussion sur
-// l'inversion de dependance plus tot dans le projet.
 func main() {
 	ctx := context.Background()
 
@@ -33,7 +25,6 @@ func main() {
 	}
 	defer pool.Close()
 
-	// --- Repositories --------------------------------------------------
 	users := repository.NewPostgresUserRepository(pool)
 	authMethods := repository.NewPostgresAuthMethodRepository(pool)
 	services := repository.NewPostgresServiceRepository(pool)
@@ -42,12 +33,8 @@ func main() {
 	permissions := repository.NewPostgresPermissionRepository(pool)
 	sessions := repository.NewPostgresSessionRepository(pool)
 
-	// --- Securite --------------------------------------------------------
 	hasher := security.NewBcryptHasher()
 
-	// --- Cas d'usage -----------------------------------------------------
-	// Injectes avec les interfaces (UserRepository, AuthMethodRepository,
-	// domain.PasswordHasher...), jamais les types concrets ci-dessus.
 	createUser := application.NewCreateUserUseCase(users)
 	registerAuthMethod := application.NewRegisterAuthMethodUseCase(users, authMethods, hasher)
 	registerUser := application.NewRegisterUserUseCase(createUser, registerAuthMethod, users)
@@ -56,7 +43,6 @@ func main() {
 	createSession := application.NewCreateSessionUseCase(sessions, users, sessionTTL)
 	logout := application.NewLogoutUseCase(sessions)
 
-	// --- HTTP --------------------------------------------------------------
 	userHandler := httpapi.NewUserHandler(registerUser, users)
 	authHandler := httpapi.NewAuthHandler(registerAuthMethod, authenticate, createSession, logout)
 	serviceHandler := httpapi.NewServiceHandler(services)
@@ -74,12 +60,6 @@ func main() {
 		serviceAuth, userAuth, authz,
 	)
 
-	// CORS enveloppe TOUT le mux (pas une route precise) -- voir la doc
-	// de CORSMiddleware pour pourquoi. "*" par defaut, pratique en
-	// developpement local avec un frontend sur un autre port, mais a
-	// restreindre via CORS_ALLOWED_ORIGINS (liste separee par des
-	// virgules, ex: "http://localhost:5173,https://mon-frontend.example")
-	// des que l'API est exposee au-dela de ta machine.
 	cors := httpapi.NewCORSMiddleware(strings.Split(getEnv("CORS_ALLOWED_ORIGINS", "*"), ","))
 	handler := cors.Wrap(mux)
 
@@ -101,8 +81,6 @@ func main() {
 	}
 }
 
-// getEnv lit une variable d'environnement, avec une valeur de repli si
-// elle est absente ou vide.
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
