@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 const testClientIP = "192.0.2.1"

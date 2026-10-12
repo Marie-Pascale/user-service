@@ -7,8 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 func TestPostgresServiceRepository_CreateAndVerify(t *testing.T) {

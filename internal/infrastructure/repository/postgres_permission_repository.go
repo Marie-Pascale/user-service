@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 type PostgresPermissionRepository struct {

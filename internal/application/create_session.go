@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 type CreateSessionUseCase struct {

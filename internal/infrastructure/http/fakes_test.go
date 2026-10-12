@@ -3,8 +3,8 @@ package httpapi
 import (
 	"context"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 type fakeUserRepo struct {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 type authFixture struct {

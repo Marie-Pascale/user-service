@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 var ErrEmailAlreadyUsed = errors.New("email already used by another account")

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 func withTestService(ctx context.Context, svc *domain.Service) context.Context {

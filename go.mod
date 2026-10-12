@@ -1,4 +1,4 @@
-module gestionnaire-usagers
+module user-service
 
 go 1.22
 

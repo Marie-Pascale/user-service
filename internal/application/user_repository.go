@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 type UserRepository interface {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 func TestGroupHandler_Create(t *testing.T) {

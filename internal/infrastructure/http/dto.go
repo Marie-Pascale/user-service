@@ -3,7 +3,7 @@ package httpapi
 import (
 	"time"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 type userResponse struct {

@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 const invalidJSONRequestBody = "invalid JSON request body"

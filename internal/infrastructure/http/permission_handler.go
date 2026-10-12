@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 type PermissionHandler struct {

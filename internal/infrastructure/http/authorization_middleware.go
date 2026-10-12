@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"gestionnaire-usagers/internal/application"
+	"user-service/internal/application"
 )
 
 type AuthorizationMiddleware struct {

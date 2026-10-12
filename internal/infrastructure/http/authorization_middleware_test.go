@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 func setupAuthzTest(t *testing.T, permissionKey string) (authz *AuthorizationMiddleware, adminUser, plainUser *domain.User) {

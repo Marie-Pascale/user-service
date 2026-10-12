@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 func TestAuthenticateUserUseCase_Execute(t *testing.T) {

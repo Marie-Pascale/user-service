@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/domain"
 )
 
 func TestServiceAuthMiddleware_Authenticate(t *testing.T) {

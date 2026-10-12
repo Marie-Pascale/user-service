@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"gestionnaire-usagers/internal/application"
+	"user-service/internal/application"
 )
 
 func TestAdminRole_HasAllApplicationPermissions(t *testing.T) {

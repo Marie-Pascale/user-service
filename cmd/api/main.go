@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"gestionnaire-usagers/internal/application"
-	httpapi "gestionnaire-usagers/internal/infrastructure/http"
-	"gestionnaire-usagers/internal/infrastructure/repository"
-	"gestionnaire-usagers/internal/infrastructure/security"
+	"user-service/internal/application"
+	httpapi "user-service/internal/infrastructure/http"
+	"user-service/internal/infrastructure/repository"
+	"user-service/internal/infrastructure/security"
 )
 
 const sessionTTL = 24 * time.Hour

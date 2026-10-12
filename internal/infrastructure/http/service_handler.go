@@ -3,8 +3,8 @@ package httpapi
 import (
 	"net/http"
 
-	"gestionnaire-usagers/internal/application"
-	"gestionnaire-usagers/internal/domain"
+	"user-service/internal/application"
+	"user-service/internal/domain"
 )
 
 type ServiceHandler struct {
