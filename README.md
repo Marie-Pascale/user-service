@@ -1,74 +1,74 @@
-# Gestionnaire d'usagers
+# User Management Service
 
-API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
+A user management API written in Go, with PostgreSQL as its database.
 
-## Structure du projet
+## Project structure
 
 ```
 .
-├── cmd/api/main.go       # Point d'entrée de l'application
+├── cmd/api/main.go       # Application entry point
 ├── internal/
-│   ├── domain/            # Entités et logique métier pure
-│   ├── application/       # Cas d'utilisation / services applicatifs
+│   ├── domain/            # Entities and pure business logic
+│   ├── application/       # Use cases / application services
 │   └── infrastructure/
-│       ├── repository/    # Accès aux données (Postgres, etc.)
-│       └── service/       # Intégrations avec des services externes
-├── docker-compose.yml    # Orchestration des services (api + db)
-├── Dockerfile             # Image Docker pour l'API Go
-├── .air.toml              # Configuration du hot-reload
-└── go.mod                 # Dépendances Go
+│       ├── repository/    # Data access (Postgres, etc.)
+│       └── service/       # Integrations with external services
+├── docker-compose.yml    # Service orchestration (api + db)
+├── Dockerfile             # Docker image for the Go API
+├── .air.toml              # Hot-reload configuration
+└── go.mod                 # Go dependencies
 ```
 
-## Commandes disponibles
+## Available commands
 
 ```bash
 make
 ```
-(ou `make help`, équivalent) Liste toutes les cibles du `Makefile` avec leur description, générée automatiquement à partir des commentaires `## ...` qui suivent chaque cible — pas besoin de maintenir cette liste à la main : ajoute simplement `## description` après une nouvelle cible et elle apparaîtra dans le menu.
+(or `make help`, which is equivalent) lists all `Makefile` targets with their descriptions. The list is generated automatically from the `## ...` comments following each target, so there is no need to maintain it manually: just add `## description` after a new target and it will appear in the menu.
 
-**Après avoir modifié le `Dockerfile`** (nouvelle dépendance système, nouvel outil installé...), lance `make rebuild` explicitement. `ensure-up` (dont dépendent la plupart des cibles) ne reconstruit l'image que si le conteneur `api` n'est **pas déjà en marche** — s'il tourne déjà avec une image périmée, il continue de l'utiliser telle quelle, sans jamais rebuilder tout seul.
+**After modifying the `Dockerfile`** (adding a system dependency or installing a new tool, for example), explicitly run `make rebuild`. `ensure-up` (a dependency of most targets) only rebuilds the image if the `api` container is **not already running**. If it is already running with an outdated image, it keeps using that image and will not rebuild it automatically.
 
-## Démarrage
+## Getting started
 
-**Obligatoire avant le tout premier `make up`** (seulement si `go.sum` n'existe pas encore dans le projet) : génère-le avec l'une de ces deux méthodes.
+**Required before the very first `make up`** (only if `go.sum` does not exist in the project yet): generate it using one of the following methods.
 
-**Sans Go installé localement** — via Docker :
+**Without Go installed locally** — using Docker:
 ```bash
 make mod-tidy
 ```
-Ça fonctionne même sans `go.sum` au départ : `docker-compose.yml` monte le dossier du projet en volume (`.:/app`), donc tout ce que `go mod tidy` écrit *à l'intérieur* du conteneur (le `go.sum`) apparaît directement sur ton disque, comme pour `coverage.html` plus tôt.
+This works even if `go.sum` does not exist yet: `docker-compose.yml` mounts the project directory as a volume (`.:/app`), so anything `go mod tidy` writes *inside* the container (such as `go.sum`) appears directly on your machine, just like `coverage.html`.
 
-**Avec Go installé localement** :
+**With Go installed locally**:
 ```bash
 go mod tidy
 ```
 
-Ensuite, pour démarrer les conteneurs :
+Then start the containers:
 
 ```bash
 make up
 ```
 
-Si tu ajoutes une nouvelle dépendance plus tard (un nouvel `import` externe), relance `make mod-tidy` pour mettre à jour `go.mod`/`go.sum` en conséquence.
+If you add a new dependency later (a new external `import`), run `make mod-tidy` again to update `go.mod`/`go.sum` accordingly.
 
-L'API sera accessible sur `http://localhost:8080`.
-La base PostgreSQL sera accessible sur `localhost:5432` (utile pour t'y connecter avec un client comme DBeaver ou psql).
+The API will be available at `http://localhost:8080`.
+PostgreSQL will be available at `localhost:5432` (for connecting with a client such as DBeaver or psql).
 
-## Vérifier que ça fonctionne
+## Verify that it works
 
 ```bash
 curl http://localhost:8080/health
 ```
 
-Tu devrais recevoir : `{"status":"ok"}`
+You should receive: `{"status":"ok"}`
 
-## Arrêter les conteneurs
+## Stop the containers
 
 ```bash
 docker compose down
 ```
 
-Pour aussi supprimer les données de la base de données :
+To also delete the database data:
 
 ```bash
 docker compose down -v
@@ -76,231 +76,231 @@ docker compose down -v
 
 ## Tests
 
-Toutes les commandes ci-dessous s'exécutent **à l'intérieur du conteneur Docker**, pas sur ta machine — tu n'as donc pas besoin d'installer Go localement pour les lancer (seulement pour que ton IDE t'assiste en éditant les fichiers). Si les conteneurs ne sont pas démarrés, `make` les démarre automatiquement en mode détaché avant d'exécuter la commande.
+All commands below run **inside the Docker container**, not on your machine, so you do not need to install Go locally to run them (only if you want your IDE to provide assistance while editing files). If the containers are not running, `make` starts them in detached mode before executing the command.
 
-**Tests unitaires**
+**Unit tests**
 ```bash
-make test              # lance tous les tests (rapide, ne touche pas a la BD)
-make test-verbose      # avec le detail de chaque cas
-make coverage          # genere un rapport de couverture (coverage.html, visible directement sur ton disque)
-make race               # avec detection des race conditions
+make test              # run all tests (fast, does not touch the database)
+make test-verbose      # show details for each test case
+make coverage          # generate a coverage report (coverage.html, available on your machine)
+make race               # run with the race detector
 ```
 
-**Tests d'intégration** (contre une vraie base Postgres)
+**Integration tests** (against a real Postgres database)
 ```bash
-make test-integration   # applique les migrations puis lance les tests marques "integration"
+make test-integration   # apply migrations, then run tests tagged "integration"
 ```
-Ces tests utilisent un [build tag](https://pkg.go.dev/go/build#hdr-Build_Constraints) Go (`//go:build integration`) pour rester séparés des tests unitaires — `go test ./...` seul ne les exécute jamais, il faut explicitement `-tags=integration`.
+These tests use a Go [build tag](https://pkg.go.dev/go/build#hdr-Build_Constraints) (`//go:build integration`) to keep them separate from unit tests. `go test ./...` does not run them; you must explicitly pass `-tags=integration`.
 
-**Benchmarks** (performance au niveau du code)
+**Benchmarks** (code-level performance)
 ```bash
 make bench
 ```
 
-**Tests de charge** (performance de l'API sous requêtes concurrentes)
+**Load tests** (API performance under concurrent requests)
 
-Voir [`loadtest/README.md`](./loadtest/README.md). Tourne dans un conteneur Docker dédié (version de `vegeta` épinglée) — comme pour les tests unitaires, aucune installation locale requise.
+See [`loadtest/README.md`](./loadtest/README.md). They run in a dedicated Docker container (with a pinned `vegeta` version), so no local installation is required, just like for unit tests.
 ```bash
 make load-test-health
 ```
 
-**Autres commandes utiles**
+**Other useful commands**
 ```bash
-make shell    # ouvre un shell dans le conteneur api, pour deboguer manuellement
-make down     # arrete les conteneurs
+make shell    # open a shell in the api container for manual debugging
+make down     # stop the containers
 ```
 
-## Migrations
+## Database migrations
 
-Gérées avec [`golang-migrate`](https://github.com/golang-migrate/migrate), exécuté dans le conteneur `api` (installé via le `Dockerfile`). Les fichiers vivent dans `migrations/`, en paires `up`/`down` numérotées séquentiellement.
+Managed with [`golang-migrate`](https://github.com/golang-migrate/migrate), which runs in the `api` container (installed via the `Dockerfile`). Migration files live in `migrations/` as sequentially numbered `up`/`down` pairs.
 
 ```bash
-make migrate-up        # applique toutes les migrations en attente
-make migrate-down      # annule la derniere migration
-make migrate-reset     # annule TOUT le schema (destructif, dev seulement)
-make migrate-version   # affiche la version actuelle
-make migrate-create name=nom_de_la_migration   # cree une nouvelle paire up/down
-make clean-db           # reinitialise completement la BD (equivalent a migrate-reset + migrate-up)
+make migrate-up        # apply all pending migrations
+make migrate-down      # roll back the most recent migration
+make migrate-reset     # roll back ALL migrations (destructive; development only)
+make migrate-version   # show the current version
+make migrate-create name=migration_name   # create a new up/down pair
+make clean-db           # completely reset the database (equivalent to migrate-reset + migrate-up)
 ```
 
-Après `make up` la première fois, lance `make migrate-up` pour créer les tables.
+After running `make up` for the first time, run `make migrate-up` to create the tables.
 
-**`make clean-db`** repart d'une base complètement vide et réapplique toutes les migrations dans l'ordre — y compris celles qui sèment des données (`000013`-`000015` : self-service, rôle `admin`, permissions internes). Utile après une session de tests manuels (`curl`) pour repartir d'un état propre, **sans** avoir à relancer `make grant-admin` (le rôle admin revient, mais plus aucun usager n'y est assigné — il faudra recréer un compte et le lier à nouveau).
+**`make clean-db`** starts from a completely empty database and reapplies all migrations in order, including those that seed data (`000013`-`000015`: self-service, the `admin` role, and internal permissions). This is useful after manual testing with `curl` to restore a clean state **without** having to run `make grant-admin` again (the admin role is recreated, but no users are assigned to it; you will need to create an account and assign it again).
 
-Pour les tests d'intégration automatisés (`make test-integration`), le nettoyage se fait différemment : un `TestMain` vide les tables **avant** que la suite ne démarre (voir `internal/infrastructure/repository/main_test.go`), garantissant un état propre peu importe si le run précédent a échoué avant d'atteindre ses `t.Cleanup`. `make clean-db` reste utile en complément pour un nettoyage manuel, ponctuel, en dehors du cycle de test.
+Automated integration tests (`make test-integration`) clean up differently: `TestMain` empties the tables **before** the test suite starts (see `internal/infrastructure/repository/main_test.go`), ensuring a clean state even if the previous run failed before reaching its `t.Cleanup` calls. `make clean-db` is still useful for occasional manual cleanup outside the test cycle.
 
-## Entités du domaine
+## Domain entities
 
-| Entité | Rôle |
+| Entity | Purpose |
 |---|---|
-| `User` | L'usager (identité, sans authentification) |
-| `AuthMethod` | Une méthode d'authentification liée à un usager (mot de passe local, Google, Facebook...) — plusieurs par usager |
-| `Service` | Un service tiers de l'écosystème, identifié par son propre ID et une clé API |
-| `Permission` | Une permission précise, définie par un service (ex: `orders:read`) |
-| `Role` | Un regroupement nommé de permissions, pouvant couvrir plusieurs services |
-| `Group` | Un regroupement d'usagers ; les rôles assignés au groupe sont hérités par tous ses membres |
-| `Session` | Une connexion active d'un usager — jeton opaque stocké en base, révocable immédiatement (voir `UserAuthMiddleware`) |
+| `User` | A user (identity, without authentication) |
+| `AuthMethod` | An authentication method linked to a user (local password, Google, Facebook, etc.); a user can have several |
+| `Service` | A third-party service in the ecosystem, identified by its own ID and an API key |
+| `Permission` | A specific permission defined by a service (e.g. `orders:read`) |
+| `Role` | A named collection of permissions that can span multiple services |
+| `Group` | A collection of users; roles assigned to a group are inherited by all its members |
+| `Session` | An active user session — an opaque token stored in the database and immediately revocable (see `UserAuthMiddleware`) |
 
-Toutes les entités ont `created_at`/`updated_at` (`Permission`, `Role`, `Group` depuis la migration `000016` ; `Service` depuis la `000017`). `UpdatedAt` avance à **chaque** mutation, pas seulement via `PUT` — par exemple, `Role.GrantPermission()`/`RevokePermission()`, `Group.AddMember()`/`RemoveMember()`/`AssignRole()` et `Service.RotateAPIKey()` le mettent aussi à jour, autant en mémoire (domaine) qu'en base (repository Postgres).
+All entities have `created_at`/`updated_at` (`Permission`, `Role`, and `Group` since migration `000016`; `Service` since `000017`). `UpdatedAt` advances on **every** mutation, not only through `PUT`. For example, `Role.GrantPermission()`/`RevokePermission()`, `Group.AddMember()`/`RemoveMember()`/`AssignRole()`, and `Service.RotateAPIKey()` also update it, both in memory (domain) and in the database (Postgres repository).
 
-`User` a aussi `LastLoginAt` (`null` tant que jamais connecté, migration `000018`), mis à jour dans **`CreateSessionUseCase`** — pas dans `AuthenticateUserUseCase` — pour couvrir uniformément toute méthode de connexion aboutissant à une session (mot de passe local aujourd'hui, `Google`/`Facebook` plus tard), sans dupliquer cette logique dans chaque flot d'authentification. C'est du **best-effort** : un échec de cette mise à jour ne bloque jamais la connexion elle-même (même logique que `UserAuthMiddleware` avec `Sessions.Touch`).
+`User` also has `LastLoginAt` (`null` until the user has logged in; migration `000018`), updated in **`CreateSessionUseCase`** — not in `AuthenticateUserUseCase` — so it consistently covers every authentication method that results in a session (local password today, `Google`/`Facebook` later), without duplicating this logic in each authentication flow. This is **best-effort**: a failure to update it never blocks the login itself (the same approach used by `UserAuthMiddleware` with `Sessions.Touch`).
 
-Les permissions effectives d'un usager = ses permissions directes + celles de ses rôles directs + celles des rôles hérités de ses groupes. Calculé par `AuthorizationService.ResolvePermissionKeys` dans la couche `application`.
+A user's effective permissions are the sum of their direct permissions, permissions from their directly assigned roles, and permissions from roles inherited through their groups. They are calculated by `AuthorizationService.ResolvePermissionKeys` in the `application` layer.
 
-## Cas d'usage (`internal/application`)
+## Use cases (`internal/application`)
 
-| Cas d'usage | Rôle |
+| Use case | Purpose |
 |---|---|
-| `CreateUserUseCase` | Crée un usager (sans authentification), rejette les courriels déjà utilisés |
-| `RegisterAuthMethodUseCase` | Ajoute une méthode d'authentification (locale ou OAuth) à un usager **existant** |
-| `RegisterUserUseCase` | Compose les deux ci-dessus : crée un usager **et** sa première méthode d'authentification, en une opération — avec suppression de compensation si la deuxième étape échoue |
-| `AuthenticateUserUseCase` | Connexion par mot de passe local ; retourne toujours la même erreur en cas d'échec (anti-énumération) |
-| `CreateSessionUseCase` / `LogoutUseCase` | Création et révocation de session, séparées de l'authentification elle-même |
-| `AuthorizationService` | Résout les permissions effectives d'un usager pour un service : directes + rôles directs + rôles hérités des groupes |
+| `CreateUserUseCase` | Creates a user (without authentication) and rejects email addresses that are already in use |
+| `RegisterAuthMethodUseCase` | Adds an authentication method (local or OAuth) to an **existing** user |
+| `RegisterUserUseCase` | Combines the two above: creates a user **and** their first authentication method in one operation, with compensating deletion if the second step fails |
+| `AuthenticateUserUseCase` | Authenticates with a local password; always returns the same error on failure (anti-enumeration) |
+| `CreateSessionUseCase` / `LogoutUseCase` | Create and revoke sessions separately from authentication itself |
+| `AuthorizationService` | Resolves a user's effective permissions for a service: direct permissions + directly assigned roles + roles inherited from groups |
 
-Chacun est testé avec des repositories **en mémoire** (`internal/application/fakes_test.go`) plutôt que Postgres — rapide, déterministe, aucun besoin que `make up` tourne pour ces tests-là (`make test` suffit).
+Each is tested with **in-memory** repositories (`internal/application/fakes_test.go`) rather than Postgres — fast and deterministic, with no need for `make up` to be running (`make test` is enough).
 
-## Documentation API
+## API documentation
 
-La spec complète est dans [`openapi.yaml`](./openapi.yaml) (format OpenAPI 3.0). Deux façons de la consulter :
+The complete specification is in [`openapi.yaml`](./openapi.yaml) (OpenAPI 3.0 format). You can view it in two ways:
 
-- **Intégrée** : une fois `make up` lancé, va sur [http://localhost:8080/docs](http://localhost:8080/docs) — Swagger UI, chargé depuis un CDN, pointé vers `/openapi.yaml`
-- **Externe** : colle le contenu de `openapi.yaml` dans [editor.swagger.io](https://editor.swagger.io), si tu préfères ne pas avoir l'API en marche
+- **Built-in**: once `make up` is running, visit [http://localhost:8080/docs](http://localhost:8080/docs) — Swagger UI is loaded from a CDN and points to `/openapi.yaml`.
+- **External**: paste the contents of `openapi.yaml` into [editor.swagger.io](https://editor.swagger.io) if you prefer not to run the API.
 
-Cette spec documente l'état **réel actuel** des routes (y compris lesquelles sont protégées et par quel mécanisme) — à tenir à jour à chaque changement de route, plutôt que de la laisser dériver.
+This specification documents the **actual current** state of the routes, including which are protected and by which mechanism. Keep it up to date whenever routes change rather than letting it drift.
 
-## Endpoints HTTP
+## HTTP endpoints
 
-| Méthode | Route | Description | Protection |
+| Method | Route | Description | Authentication |
 |---|---|---|---|
-| `GET` | `/health` | Vérifie que le serveur répond | Aucune |
-| `GET` | `/docs` | Documentation Swagger UI | Aucune |
-| `GET` | `/openapi.yaml` | Spec OpenAPI brute | Aucune |
-| `POST` | `/users` | Crée un usager **avec** sa méthode d'authentification (`{"name", "email", "auth_method": {"password"}}` — `provider` optionnel, défaut `local`) | Aucune (auto-inscription) |
-| `GET` | `/users` | Liste tous les usagers | Session + `users:read:any` |
-| `GET` | `/users/{id}` | Récupère un usager | Session — soi-même OU `users:read:any` |
-| `PUT` | `/users/{id}` | Met à jour nom/courriel | Session — soi-même OU `users:write:any` |
-| `DELETE` | `/users/{id}` | Supprime un usager | Session — soi-même OU `users:delete:any` |
-| `POST` | `/users/{id}/password` | Ajoute/remplace le mot de passe local d'un usager **existant** (`{"password"}`) | Session — soi-même OU `users:write:any` |
-| `POST` | `/auth/login` | Connexion (`{"email", "password"}`) — retourne l'usager **et un jeton de session** | Aucune |
-| `POST` | `/auth/logout` | Révoque la session courante | **Session** (`Authorization: Bearer`) |
-| `GET` | `/me` | Le profil de l'usager connecté | **Session** (`Authorization: Bearer`) |
-| `POST` | `/services` | Crée un service tiers, retourne sa clé API **une seule fois** (`{"name", "description"}`) | Session + `services:create` |
-| `GET` | `/services` | Liste tous les services (jamais la clé, même hachée) | Session + `services:manage` |
-| `GET` / `PUT` / `DELETE` | `/services/{id}` | Récupère / modifie (nom, description) / supprime un service | Session + `services:manage` |
-| `POST` | `/services/{id}/rotate-key` | Fait pivoter la clé API, invalidant l'ancienne **immédiatement** — nouvelle clé affichée **une seule fois** | Session + `services:manage` |
-| `GET` | `/users/{id}/profile` | Infos de base d'un usager (`id`, `name`, `email`, `status`), **pour le service authentifié** | **Clé API** (`X-API-Key`) |
-| `GET` | `/users/{id}/permissions` | Permissions effectives d'un usager, **pour le service authentifié** | **Clé API** (`X-API-Key`) |
-| `GET` | `/users/{id}/permissions/check?permission=...` | Vérifie **une** permission précise (`{"allowed": true/false}`) | **Clé API** (`X-API-Key`) |
-| `POST` | `/permissions/self` | Un service enregistre lui-même une permission (`{"key", "description"}`), idempotent | **Clé API** (`X-API-Key`) |
-| `POST` | `/permissions` | Crée une permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
-| `GET` | `/permissions?service_id=...` | Liste les permissions d'un service | Session + `permissions:manage` |
-| `GET` / `DELETE` | `/permissions/{id}` | Récupère / supprime une permission | Session + `permissions:manage` |
-| `POST` | `/roles` | Crée un rôle (`{"name", "description"}`) | Session + `roles:manage` |
-| `GET` | `/roles` | Liste tous les rôles | Session + `roles:manage` |
-| `GET` / `PUT` / `DELETE` | `/roles/{id}` | Récupère (avec permissions) / modifie (nom, description) / supprime un rôle | Session + `roles:manage` |
-| `POST` | `/roles/{id}/permissions` | Accorde une permission à un rôle (`{"permission_id"}`) | Session + `roles:manage` |
-| `DELETE` | `/roles/{id}/permissions/{permissionId}` | Révoque une permission d'un rôle | Session + `roles:manage` |
-| `POST` | `/groups` | Crée un groupe (`{"name", "description"}`) | Session + `groups:manage` |
-| `GET` | `/groups` | Liste tous les groupes | Session + `groups:manage` |
-| `GET` / `PUT` / `DELETE` | `/groups/{id}` | Récupère (membres + rôles) / modifie (nom, description) / supprime un groupe | Session + `groups:manage` |
-| `POST` | `/groups/{id}/members` | Ajoute un membre (`{"user_id"}`) | Session + `groups:manage` |
-| `DELETE` | `/groups/{id}/members/{userId}` | Retire un membre | Session + `groups:manage` |
-| `POST` | `/groups/{id}/roles` | Assigne un rôle au groupe, hérité par tous ses membres (`{"role_id"}`) | Session + `groups:manage` |
+| `GET` | `/health` | Check that the server is responding | None |
+| `GET` | `/docs` | Swagger UI documentation | None |
+| `GET` | `/openapi.yaml` | Raw OpenAPI specification | None |
+| `POST` | `/users` | Create a user **with** an authentication method (`{"name", "email", "auth_method": {"password"}}` — `provider` is optional and defaults to `local`) | None (self-registration) |
+| `GET` | `/users` | List all users | Session + `users:read:any` |
+| `GET` | `/users/{id}` | Get a user | Session — self OR `users:read:any` |
+| `PUT` | `/users/{id}` | Update name/email | Session — self OR `users:write:any` |
+| `DELETE` | `/users/{id}` | Delete a user | Session — self OR `users:delete:any` |
+| `POST` | `/users/{id}/password` | Add/replace the local password of an **existing** user (`{"password"}`) | Session — self OR `users:write:any` |
+| `POST` | `/auth/login` | Log in (`{"email", "password"}`) — returns the user **and a session token** | None |
+| `POST` | `/auth/logout` | Revoke the current session | **Session** (`Authorization: Bearer`) |
+| `GET` | `/me` | Profile of the logged-in user | **Session** (`Authorization: Bearer`) |
+| `POST` | `/services` | Create a third-party service; its API key is returned **only once** (`{"name", "description"}`) | Session + `services:create` |
+| `GET` | `/services` | List all services (never returns the key, even hashed) | Session + `services:manage` |
+| `GET` / `PUT` / `DELETE` | `/services/{id}` | Get / update (name, description) / delete a service | Session + `services:manage` |
+| `POST` | `/services/{id}/rotate-key` | Rotate the API key, invalidating the old one **immediately** — the new key is displayed **only once** | Session + `services:manage` |
+| `GET` | `/users/{id}/profile` | Basic user info (`id`, `name`, `email`, `status`), **for the authenticated service** | **API key** (`X-API-Key`) |
+| `GET` | `/users/{id}/permissions` | Effective permissions for a user, **for the authenticated service** | **API key** (`X-API-Key`) |
+| `GET` | `/users/{id}/permissions/check?permission=...` | Check **one** specific permission (`{"allowed": true/false}`) | **API key** (`X-API-Key`) |
+| `POST` | `/permissions/self` | A service registers a permission for itself (`{"key", "description"}`); idempotent | **API key** (`X-API-Key`) |
+| `POST` | `/permissions` | Create a permission (`{"service_id", "key", "description"}`) | Session + `permissions:manage` |
+| `GET` | `/permissions?service_id=...` | List a service's permissions | Session + `permissions:manage` |
+| `GET` / `DELETE` | `/permissions/{id}` | Get / delete a permission | Session + `permissions:manage` |
+| `POST` | `/roles` | Create a role (`{"name", "description"}`) | Session + `roles:manage` |
+| `GET` | `/roles` | List all roles | Session + `roles:manage` |
+| `GET` / `PUT` / `DELETE` | `/roles/{id}` | Get (with permissions) / update (name, description) / delete a role | Session + `roles:manage` |
+| `POST` | `/roles/{id}/permissions` | Grant a permission to a role (`{"permission_id"}`) | Session + `roles:manage` |
+| `DELETE` | `/roles/{id}/permissions/{permissionId}` | Revoke a permission from a role | Session + `roles:manage` |
+| `POST` | `/groups` | Create a group (`{"name", "description"}`) | Session + `groups:manage` |
+| `GET` | `/groups` | List all groups | Session + `groups:manage` |
+| `GET` / `PUT` / `DELETE` | `/groups/{id}` | Get (members + roles) / update (name, description) / delete a group | Session + `groups:manage` |
+| `POST` | `/groups/{id}/members` | Add a member (`{"user_id"}`) | Session + `groups:manage` |
+| `DELETE` | `/groups/{id}/members/{userId}` | Remove a member | Session + `groups:manage` |
+| `POST` | `/groups/{id}/roles` | Assign a role to the group; all its members inherit it (`{"role_id"}`) | Session + `groups:manage` |
 
-**Autorisation "self-ou-permission"** : pour les routes marquées ainsi, un usager peut toujours agir sur son propre compte. Agir sur celui d'un autre exige la permission listée — accordée typiquement via le rôle `admin`, seedé automatiquement par la migration `000013` (voir section suivante). Les routes `/services`, `/permissions`, `/roles` et `/groups` n'ont pas cette exception : aucune notion de "soi-même" n'existe pour ces entités.
+**"Self-or-permission" authorization**: for routes marked this way, a user can always act on their own account. Acting on another user's account requires the listed permission — typically granted through the `admin` role, which is seeded automatically by migration `000013` (see the next section). The `/services`, `/permissions`, `/roles`, and `/groups` routes do not have this exception: these entities have no concept of "self".
 
-**Trois mécanismes distincts, jamais confondus** :
-- Services tiers → `X-API-Key: <clé>` (clé permanente jusqu'à rotation)
-- Usagers → `Authorization: Bearer <jeton>` (jeton de session, expire après 24h ou après `/auth/logout`)
-- Permissions → résolues via `AuthorizationService`, le **même** mécanisme protège les routes de ce service ET répond aux services tiers qui consultent les permissions d'un usager
+**Three distinct mechanisms that are never interchangeable**:
+- Third-party services → `X-API-Key: <key>` (permanent key until rotated)
+- Users → `Authorization: Bearer <token>` (session token, expires after 24 hours or after `/auth/logout`)
+- Permissions → resolved through `AuthorizationService`; the **same** mechanism protects this service's routes AND answers third-party services querying a user's permissions
 
-## Amorcer le premier administrateur
+## Bootstrap the first administrator
 
-Le rôle `admin` (avec toutes les permissions internes) est créé automatiquement par la migration `000013_seed_self_service`. Mais **aucun usager n'a ce rôle par défaut** — il faut l'accorder manuellement au premier compte :
+The `admin` role (with all internal permissions) is created automatically by the `000013_seed_self_service` migration. However, **no user has this role by default** — you must grant it manually to the first account:
 
 ```bash
 make grant-admin email=alice@example.com
 ```
 
-Requête SQL directe contre la base — volontairement, il n'existe **aucune route HTTP** pour accorder le rôle admin : ça éviterait sinon le problème classique de l'œuf et la poule au tout premier déploiement (qui protégerait la route qui donne les droits d'admin ?).
+This runs a direct SQL query against the database. There is deliberately **no HTTP route** for granting the admin role; otherwise, the first deployment would face the classic chicken-and-egg problem: who would protect the route that grants admin privileges?
 
-**Garde-fou** : `admin` doit toujours posséder *toutes* les permissions définies par l'application (`application.AllPermissionKeys`, dans `authorization_policy.go`). Un test d'intégration (`TestAdminRole_HasAllApplicationPermissions`) vérifie cet invariant contre la vraie base à chaque `make test-integration` — si une nouvelle permission est ajoutée au code sans migration correspondante pour l'accorder à `admin`, ce test échoue plutôt que de laisser passer une régression silencieuse (un admin qui perd accès à une fonctionnalité sans que personne ne s'en aperçoive avant la production).
+**Safeguard**: `admin` must always have *all* permissions defined by the application (`application.AllPermissionKeys` in `authorization_policy.go`). An integration test (`TestAdminRole_HasAllApplicationPermissions`) checks this invariant against the real database on every `make test-integration` run. If a new permission is added in code without a corresponding migration granting it to `admin`, the test fails rather than allowing a silent regression (an admin losing access to a feature without anyone noticing until production).
 
-**Exemple d'utilisation de bout en bout** :
+**End-to-end usage example**:
 ```bash
-# 1. Creer un usager avec son mot de passe, en une seule requete
-# (provider omis -- "local" est la valeur par defaut)
+# 1. Create a user with a password in a single request
+# (provider omitted -- "local" is the default)
 curl -X POST localhost:8080/users -d '{"name":"Alice","email":"alice@example.com","auth_method":{"password":"s3cret"}}'
 
-# 2. L'accorder comme admin (une seule fois, en local)
+# 2. Grant the admin role to the user (once, locally)
 make grant-admin email=alice@example.com
 
-# 3. Se connecter -- recupere un jeton de session
+# 3. Log in -- retrieve a session token
 curl -X POST localhost:8080/auth/login -d '{"email":"alice@example.com","password":"s3cret"}'
 # -> {"user": {...}, "token": "a1b2c3...", "expires_at": "..."}
 
-# 4. En tant qu'admin, lister TOUS les usagers (impossible sans le role)
+# 4. As an admin, list ALL users (not possible without the role)
 curl localhost:8080/users -H "Authorization: Bearer a1b2c3..."
 
-# 5. Creer un service tiers (reserve aux admins)
+# 5. Create a third-party service (admins only)
 curl -X POST localhost:8080/services -H "Authorization: Bearer a1b2c3..." -d '{"name":"orders-service","description":""}'
 # -> {"id":"...", "api_key":"a1b2c3..."}
 
-# 5b. Si la cle est compromise, la faire pivoter -- l'ancienne cesse de
-# fonctionner immediatement
+# 5b. If the key is compromised, rotate it -- the old key stops working
+# immediately
 curl -X POST localhost:8080/services/<service-id>/rotate-key -H "Authorization: Bearer a1b2c3..."
-# -> {"id":"...", "api_key":"nouvelle-cle..."}
+# -> {"id":"...", "api_key":"new-key..."}
 
-# --- Cote services tiers (mecanisme separe, cle API) ---
+# --- Third-party services (separate API key mechanism) ---
 
-# 6. Le service declare lui-meme ses permissions (typiquement a son demarrage)
-curl -X POST localhost:8080/permissions/self -H "X-API-Key: a1b2c3..." -d '{"key":"orders:read","description":"lire les commandes"}'
+# 6. The service registers its own permissions (typically at startup)
+curl -X POST localhost:8080/permissions/self -H "X-API-Key: a1b2c3..." -d '{"key":"orders:read","description":"read orders"}'
 # -> {"id":"...", "service_id":"...", "key":"orders:read", "description":"..."}
-# Rappeler la meme commande ne cree pas de doublon -- retourne la permission existante (200).
+# Repeating the same command does not create a duplicate -- it returns the existing permission (200).
 
-# 7. Consulter les infos de base d'un usager (jamais role_ids/permission_ids)
+# 7. Get a user's basic information (never role_ids/permission_ids)
 curl localhost:8080/users/<user-id>/profile -H "X-API-Key: a1b2c3..."
 # -> {"id":"...", "name":"Alice", "email":"alice@example.com", "status":"active"}
 
-# 8. Utiliser cette cle pour consulter les permissions d'un usager
+# 8. Use this key to get a user's permissions
 curl localhost:8080/users/<user-id>/permissions -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permissions":["orders:read", ...]}
 
-# 9. Ou verifier directement UNE permission precise (plus simple pour une
-# validation ponctuelle avant d'executer une action)
+# 9. Or check ONE specific permission directly (useful for a quick check
+# before performing an action)
 curl "localhost:8080/users/<user-id>/permissions/check?permission=orders:read" -H "X-API-Key: a1b2c3..."
 # -> {"user_id":"...", "service_id":"...", "permission":"orders:read", "allowed":true}
 ```
 
-## CORS (pour un frontend)
+## CORS (for a frontend)
 
-L'API autorise les requêtes cross-origin via `CORSMiddleware`, configuré par la variable d'environnement `CORS_ALLOWED_ORIGINS` (liste séparée par des virgules, ou `*` pour tout autoriser). Par défaut, `docker-compose.yml` la met à `*` — pratique en développement local avec un frontend sur un autre port (ex: `http://localhost:5173` pour Vite), mais **à restreindre explicitement** avant toute exposition au-delà de ta machine :
+The API allows cross-origin requests through `CORSMiddleware`, configured by the `CORS_ALLOWED_ORIGINS` environment variable (a comma-separated list, or `*` to allow all origins). By default, `docker-compose.yml` sets it to `*` — convenient for local development with a frontend on another port (e.g. `http://localhost:5173` for Vite), but **restrict it explicitly** before exposing the API beyond your machine:
 
 ```yaml
 # docker-compose.yml
 environment:
-  CORS_ALLOWED_ORIGINS: "http://localhost:5173,https://mon-frontend.example"
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173,https://my-frontend.example"
 ```
 
-Contrairement aux autres middlewares du projet (qui protègent chacun une route précise), celui-ci enveloppe le routeur **au complet** dans `main.go` — un navigateur peut envoyer une requête *preflight* (`OPTIONS`) vers n'importe quelle route, et les en-têtes CORS doivent être présents sur toutes les réponses, succès comme erreurs.
+Unlike the other middleware in the project (each of which protects a specific route), this one wraps the **entire** router in `main.go`. A browser can send a *preflight* (`OPTIONS`) request to any route, so CORS headers must be present on every response, including both successes and errors.
 
-## Détection de vol de session
+## Session hijacking detection
 
-Chaque `Session` enregistre l'IP et le `User-Agent` du client **au moment de la connexion** (`POST /auth/login`), migration `000019`. Sur chaque requête authentifiée suivante, `UserAuthMiddleware` compare l'IP/`User-Agent` de la requête courante à ceux enregistrés — voir `domain.Session.IsSuspicious`.
+Each `Session` records the client's IP and `User-Agent` **at login time** (`POST /auth/login`), as of migration `000019`. On every subsequent authenticated request, `UserAuthMiddleware` compares the current request's IP/`User-Agent` with the recorded values — see `domain.Session.IsSuspicious`.
 
-**La règle** : la session n'est révoquée que si **les deux** diffèrent en même temps.
+**The rule**: a session is revoked only if **both** values differ at the same time.
 
-- Un usager qui change de réseau (Wi-Fi → cellulaire) garde le même `User-Agent` → toléré
-- Un navigateur qui se met à jour en cours de session garde la même IP → toléré
-- Un jeton volé et rejoué depuis un autre appareil (IP **et** `User-Agent` différents) → la session est immédiatement supprimée, la requête reçoit `401`
+- A user who changes networks (Wi-Fi → cellular) keeps the same `User-Agent` → allowed
+- A browser updated during a session keeps the same IP → allowed
+- A stolen token replayed from another device (different IP **and** `User-Agent`) → the session is immediately deleted and the request receives `401`
 
-**Limite assumée, documentée dans le code** (`domain/session.go`) : le `User-Agent` est un simple en-tête HTTP, trivialement falsifiable. Un attaquant qui connaît le `User-Agent` exact de la victime (souvent visible dans les mêmes logs qui auraient fait fuiter le jeton) peut le recopier et contourner ce contrôle même depuis une IP différente. Cette règle attrape le vol "naïf" (un jeton simplement rejoué ailleurs, sans falsification des en-têtes) — pas un attaquant ciblé et sophistiqué. C'est un compromis délibéré entre sécurité et faux positifs, pas une garantie absolue.
+**Known limitation, documented in the code** (`domain/session.go`): `User-Agent` is an ordinary HTTP header and is trivial to forge. An attacker who knows the victim's exact `User-Agent` (often visible in the same logs that may have exposed the token) can copy it and bypass this check even from a different IP. This rule catches "naive" hijacking (a token simply replayed elsewhere, without forged headers), but not a targeted, sophisticated attacker. This is a deliberate trade-off between security and false positives, not an absolute guarantee.
 
-`clientIP()` (dans `internal/infrastructure/http/request_info.go`) lit `X-Forwarded-For` en priorité, avec repli sur `RemoteAddr`. **Cet en-tête n'est pas encore protégé par un reverse proxy de confiance** dans ce projet (déploiement direct) — à garder en tête si l'API est un jour placée derrière un proxy qui ne le filtre pas : un client malveillant pourrait alors falsifier son IP apparente.
+`clientIP()` (in `internal/infrastructure/http/request_info.go`) reads `X-Forwarded-For` first, falling back to `RemoteAddr`. **This header is not currently protected by a trusted reverse proxy** in this project (which is deployed directly). Keep this in mind if the API is ever placed behind a proxy that does not filter it: a malicious client could then spoof its apparent IP address.
 
-## Prochaines étapes
+## Next steps
 
-- Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
-- Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
-- Tests de charge pour les nouveaux endpoints critiques (voir `loadtest/README.md`)
+- A complete OAuth verification flow (Google, Facebook): authorization code exchange + signed token validation with the provider, so `RegisterUserUseCase.ExecuteOAuth` can eventually be safely connected to a public HTTP handler
+- Periodic cleanup of expired sessions (currently, an expired session is only deleted when it is *used* — see `UserAuthMiddleware`)
+- Load tests for new critical endpoints (see `loadtest/README.md`)
