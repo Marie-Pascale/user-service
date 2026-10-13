@@ -16,12 +16,12 @@ func TestMain(m *testing.M) {
 
 	pool, err := NewPool(ctx, ConfigFromEnv())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "connexion a la base de test: %v\n", err)
+		fmt.Fprintf(os.Stderr, "connect to test database: %v\n", err)
 		os.Exit(1)
 	}
 
 	if err := cleanTestData(ctx, pool); err != nil {
-		fmt.Fprintf(os.Stderr, "nettoyage de la base de test: %v\n", err)
+		fmt.Fprintf(os.Stderr, "clean test database: %v\n", err)
 		pool.Close()
 		os.Exit(1)
 	}

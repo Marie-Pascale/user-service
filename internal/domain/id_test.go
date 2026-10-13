@@ -11,7 +11,7 @@ func TestNewID(t *testing.T) {
 	id := NewID()
 
 	if !uuidV4Pattern.MatchString(id) {
-		t.Errorf("NewID() = %q, ne correspond pas au format UUID v4 attendu", id)
+		t.Errorf("NewID() = %q, does not match the expected UUID v4 format", id)
 	}
 }
 

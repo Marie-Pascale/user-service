@@ -20,16 +20,16 @@ func newTestRegisterUserUseCase() (*RegisterUserUseCase, *fakeUserRepo, *fakeAut
 }
 
 func TestRegisterUserUseCase_ExecuteLocal(t *testing.T) {
-	t.Run("cree l'usager et sa methode d'authentification", func(t *testing.T) {
+	t.Run("creates the user and their authentication method", func(t *testing.T) {
 		uc, users, authMethods := newTestRegisterUserUseCase()
 
 		u, err := uc.ExecuteLocal(context.Background(), "Alice", "alice@example.com", "s3cret")
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 
 		if _, err := users.GetByID(context.Background(), u.ID); err != nil {
-			t.Errorf("l'usager devrait avoir ete persiste: %v", err)
+			t.Errorf("the user should have been persisted: %v", err)
 		}
 
 		methods, err := authMethods.ListByUserID(context.Background(), u.ID)
@@ -37,35 +37,35 @@ func TestRegisterUserUseCase_ExecuteLocal(t *testing.T) {
 			t.Fatalf("ListByUserID: %v", err)
 		}
 		if len(methods) != 1 || methods[0].Provider != domain.ProviderLocal {
-			t.Errorf("methodes = %+v, attendu une methode locale", methods)
+			t.Errorf("methods = %+v, want one local method", methods)
 		}
 	})
 
-	t.Run("supprime l'usager si le mot de passe est invalide (compensation)", func(t *testing.T) {
+	t.Run("deletes the user if the password is invalid (compensation)", func(t *testing.T) {
 		uc, users, _ := newTestRegisterUserUseCase()
 
 		_, err := uc.ExecuteLocal(context.Background(), "Alice", "alice@example.com", "")
 		if err != domain.ErrEmptyPassword {
-			t.Fatalf("erreur = %v, attendu %v", err, domain.ErrEmptyPassword)
+			t.Fatalf("error = %v, want %v", err, domain.ErrEmptyPassword)
 		}
 
 		_, err = users.GetByEmail(context.Background(), "alice@example.com")
 		if !errors.Is(err, ErrNotFound) {
-			t.Error("l'usager aurait du etre supprime (compensation) apres l'echec de creation du mot de passe")
+			t.Error("the user should have been deleted (compensation) after password creation failed")
 		}
 	})
 
-	t.Run("refuse un courriel deja utilise sans toucher aux methodes d'authentification", func(t *testing.T) {
+	t.Run("rejects an email address that is already in use without changing auth methods", func(t *testing.T) {
 		uc, _, authMethods := newTestRegisterUserUseCase()
 
 		_, err := uc.ExecuteLocal(context.Background(), "Alice", "alice@example.com", "s3cret")
 		if err != nil {
-			t.Fatalf("premiere inscription: %v", err)
+			t.Fatalf("first registration: %v", err)
 		}
 
 		_, err = uc.ExecuteLocal(context.Background(), "Alice Bis", "alice@example.com", "autre-mdp")
 		if err != ErrEmailAlreadyUsed {
-			t.Fatalf("erreur = %v, attendu %v", err, ErrEmailAlreadyUsed)
+			t.Fatalf("error = %v, want %v", err, ErrEmailAlreadyUsed)
 		}
 
 		all, _ := authMethods.ListByUserID(context.Background(), "")
@@ -78,11 +78,11 @@ func TestRegisterUserUseCase_ExecuteOAuth(t *testing.T) {
 
 	u, err := uc.ExecuteOAuth(context.Background(), "Alice", "alice@example.com", domain.ProviderGoogle, "google-sub-123")
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if _, err := users.GetByID(context.Background(), u.ID); err != nil {
-		t.Errorf("l'usager devrait avoir ete persiste: %v", err)
+		t.Errorf("the user should have been persisted: %v", err)
 	}
 
 	methods, err := authMethods.ListByUserID(context.Background(), u.ID)
@@ -90,6 +90,6 @@ func TestRegisterUserUseCase_ExecuteOAuth(t *testing.T) {
 		t.Fatalf("ListByUserID: %v", err)
 	}
 	if len(methods) != 1 || methods[0].Provider != domain.ProviderGoogle {
-		t.Errorf("methodes = %+v, attendu une methode Google", methods)
+		t.Errorf("methods = %+v, want one Google method", methods)
 	}
 }

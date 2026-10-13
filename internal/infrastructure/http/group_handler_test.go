@@ -14,14 +14,14 @@ import (
 func TestGroupHandler_Create(t *testing.T) {
 	h := NewGroupHandler(newFakeGroupRepo())
 
-	body := strings.NewReader(`{"name":"equipe-support","description":""}`)
+	body := strings.NewReader(`{"name":"support-team","description":""}`)
 	req := httptest.NewRequest(http.MethodPost, "/groups", body)
 	rec := httptest.NewRecorder()
 
 	h.Create(rec, req)
 
 	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusCreated, rec.Body.String())
+		t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusCreated, rec.Body.String())
 	}
 }
 
@@ -30,10 +30,10 @@ func TestGroupHandler_AddAndRemoveMember(t *testing.T) {
 	h := NewGroupHandler(groups)
 	ctx := context.Background()
 
-	g, _ := domain.NewGroup(domain.NewID(), "equipe-support", "")
+	g, _ := domain.NewGroup(domain.NewID(), "support-team", "")
 	_ = groups.Create(ctx, g)
 
-	t.Run("AddMember ajoute le membre", func(t *testing.T) {
+	t.Run("AddMember adds the member", func(t *testing.T) {
 		body := strings.NewReader(`{"user_id":"user-1"}`)
 		req := httptest.NewRequest(http.MethodPost, "/groups/"+g.ID+"/members", body)
 		req.SetPathValue("id", g.ID)
@@ -42,13 +42,13 @@ func TestGroupHandler_AddAndRemoveMember(t *testing.T) {
 		h.AddMember(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 
 		var resp groupResponse
 		_ = json.NewDecoder(rec.Body).Decode(&resp)
 		if len(resp.MemberUserIDs) != 1 || resp.MemberUserIDs[0] != "user-1" {
-			t.Errorf("MemberUserIDs = %v, attendu [\"user-1\"]", resp.MemberUserIDs)
+			t.Errorf("MemberUserIDs = %v, want [\"user-1\"]", resp.MemberUserIDs)
 		}
 	})
 
@@ -61,12 +61,12 @@ func TestGroupHandler_AddAndRemoveMember(t *testing.T) {
 		h.RemoveMember(rec, req)
 
 		if rec.Code != http.StatusNoContent {
-			t.Fatalf("status = %d, attendu %d", rec.Code, http.StatusNoContent)
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
 		}
 
 		got, _ := groups.GetByID(ctx, g.ID)
 		if len(got.MemberUserIDs) != 0 {
-			t.Errorf("MemberUserIDs = %v, attendu vide apres RemoveMember", got.MemberUserIDs)
+			t.Errorf("MemberUserIDs = %v, want empty after RemoveMember", got.MemberUserIDs)
 		}
 	})
 }
@@ -76,7 +76,7 @@ func TestGroupHandler_AssignRole(t *testing.T) {
 	h := NewGroupHandler(groups)
 	ctx := context.Background()
 
-	g, _ := domain.NewGroup(domain.NewID(), "equipe-support", "")
+	g, _ := domain.NewGroup(domain.NewID(), "support-team", "")
 	_ = groups.Create(ctx, g)
 
 	body := strings.NewReader(`{"role_id":"role-1"}`)
@@ -87,13 +87,13 @@ func TestGroupHandler_AssignRole(t *testing.T) {
 	h.AssignRole(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+		t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 
 	var resp groupResponse
 	_ = json.NewDecoder(rec.Body).Decode(&resp)
 	if len(resp.RoleIDs) != 1 || resp.RoleIDs[0] != "role-1" {
-		t.Errorf("RoleIDs = %v, attendu [\"role-1\"]", resp.RoleIDs)
+		t.Errorf("RoleIDs = %v, want [\"role-1\"]", resp.RoleIDs)
 	}
 }
 
@@ -102,12 +102,12 @@ func TestGroupHandler_Update(t *testing.T) {
 	h := NewGroupHandler(groups)
 	ctx := context.Background()
 
-	g, _ := domain.NewGroup(domain.NewID(), "equipe-support", "ancienne description")
+	g, _ := domain.NewGroup(domain.NewID(), "support-team", "old description")
 	g.AddMember("user-1")
 	_ = groups.Create(ctx, g)
 
-	t.Run("200 pour une mise a jour valide, sans affecter les membres", func(t *testing.T) {
-		body := strings.NewReader(`{"name":"equipe-support-fr","description":"nouvelle description"}`)
+	t.Run("200 for a valid update without affecting members", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"support-team-fr","description":"new description"}`)
 		req := httptest.NewRequest(http.MethodPut, "/groups/"+g.ID, body)
 		req.SetPathValue("id", g.ID)
 		rec := httptest.NewRecorder()
@@ -115,45 +115,45 @@ func TestGroupHandler_Update(t *testing.T) {
 		h.Update(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 
 		var resp groupResponse
 		_ = json.NewDecoder(rec.Body).Decode(&resp)
-		if resp.Name != "equipe-support-fr" {
-			t.Errorf("Name = %q, attendu %q", resp.Name, "equipe-support-fr")
+		if resp.Name != "support-team-fr" {
+			t.Errorf("Name = %q, want %q", resp.Name, "support-team-fr")
 		}
 		if len(resp.MemberUserIDs) != 1 {
-			t.Error("MemberUserIDs ne devrait pas etre affecte par Update")
+			t.Error("MemberUserIDs should not be affected by Update")
 		}
 	})
 
-	t.Run("404 pour un groupe inexistant", func(t *testing.T) {
+	t.Run("404 for a nonexistent group", func(t *testing.T) {
 		body := strings.NewReader(`{"name":"x","description":""}`)
-		req := httptest.NewRequest(http.MethodPut, "/groups/inconnu", body)
-		req.SetPathValue("id", "inconnu")
+		req := httptest.NewRequest(http.MethodPut, "/groups/unknown", body)
+		req.SetPathValue("id", "unknown")
 		rec := httptest.NewRecorder()
 
 		h.Update(rec, req)
 
 		if rec.Code != http.StatusNotFound {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
 		}
 	})
 }
 
 func TestGroupHandler_Delete(t *testing.T) {
-	t.Run("404 pour un groupe inexistant", func(t *testing.T) {
+	t.Run("404 for a nonexistent group", func(t *testing.T) {
 		h := NewGroupHandler(newFakeGroupRepo())
 
-		req := httptest.NewRequest(http.MethodDelete, "/groups/inconnu", nil)
-		req.SetPathValue("id", "inconnu")
+		req := httptest.NewRequest(http.MethodDelete, "/groups/unknown", nil)
+		req.SetPathValue("id", "unknown")
 		rec := httptest.NewRecorder()
 
 		h.Delete(rec, req)
 
 		if rec.Code != http.StatusNotFound {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
 		}
 	})
 }

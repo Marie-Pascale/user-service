@@ -33,10 +33,10 @@ func newAuthFixture(t *testing.T) *authFixture {
 
 	u, err := domain.NewUser(domain.NewID(), "Alice", "alice@example.com")
 	if err != nil {
-		t.Fatalf("construction de l'usager: %v", err)
+		t.Fatalf("create user: %v", err)
 	}
 	if err := f.users.Create(ctx, u); err != nil {
-		t.Fatalf("persistance de l'usager: %v", err)
+		t.Fatalf("persist user: %v", err)
 	}
 	f.user = u
 
@@ -47,10 +47,10 @@ func (f *authFixture) addPermission(t *testing.T, key string) *domain.Permission
 	t.Helper()
 	p, err := domain.NewPermission(domain.NewID(), f.serviceID, key, "")
 	if err != nil {
-		t.Fatalf("construction de la permission: %v", err)
+		t.Fatalf("create permission: %v", err)
 	}
 	if err := f.permissions.Create(context.Background(), p); err != nil {
-		t.Fatalf("persistance de la permission: %v", err)
+		t.Fatalf("persist permission: %v", err)
 	}
 	return p
 }
@@ -64,10 +64,10 @@ func TestAuthorizationService_DirectPermission(t *testing.T) {
 
 	keys, err := f.service.ResolvePermissionKeys(ctx, f.user.ID, f.serviceID)
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(keys) != 1 || keys[0] != "orders:read" {
-		t.Errorf("keys = %v, attendu [\"orders:read\"]", keys)
+		t.Errorf("keys = %v, want [\"orders:read\"]", keys)
 	}
 }
 
@@ -84,10 +84,10 @@ func TestAuthorizationService_PermissionViaDirectRole(t *testing.T) {
 
 	keys, err := f.service.ResolvePermissionKeys(ctx, f.user.ID, f.serviceID)
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(keys) != 1 || keys[0] != "orders:write" {
-		t.Errorf("keys = %v, attendu [\"orders:write\"]", keys)
+		t.Errorf("keys = %v, want [\"orders:write\"]", keys)
 	}
 }
 
@@ -107,10 +107,10 @@ func TestAuthorizationService_PermissionViaGroupRole(t *testing.T) {
 
 	keys, err := f.service.ResolvePermissionKeys(ctx, f.user.ID, f.serviceID)
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(keys) != 1 || keys[0] != "orders:delete" {
-		t.Errorf("keys = %v, attendu [\"orders:delete\"] (via le groupe)", keys)
+		t.Errorf("keys = %v, want [\"orders:delete\"] (through the group)", keys)
 	}
 }
 
@@ -127,10 +127,10 @@ func TestAuthorizationService_FiltreParService(t *testing.T) {
 
 	keys, err := f.service.ResolvePermissionKeys(ctx, f.user.ID, f.serviceID)
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(keys) != 1 || keys[0] != "orders:read" {
-		t.Errorf("keys = %v, la permission d'un autre service ne devrait pas apparaitre", keys)
+		t.Errorf("keys = %v, a permission from another service should not appear", keys)
 	}
 }
 
@@ -139,10 +139,10 @@ func TestAuthorizationService_AucunePermission(t *testing.T) {
 
 	keys, err := f.service.ResolvePermissionKeys(context.Background(), f.user.ID, f.serviceID)
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(keys) != 0 {
-		t.Errorf("keys = %v, attendu aucune permission", keys)
+		t.Errorf("keys = %v, want no permissions", keys)
 	}
 }
 
@@ -155,17 +155,17 @@ func TestAuthorizationService_HasPermission(t *testing.T) {
 
 	has, err := f.service.HasPermission(ctx, f.user.ID, f.serviceID, "orders:read")
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if !has {
-		t.Error("HasPermission devrait retourner true pour une permission accordee")
+		t.Error("HasPermission should return true for a granted permission")
 	}
 
 	has, err = f.service.HasPermission(ctx, f.user.ID, f.serviceID, "orders:delete")
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if has {
-		t.Error("HasPermission devrait retourner false pour une permission non accordee")
+		t.Error("HasPermission should return false for an ungranted permission")
 	}
 }

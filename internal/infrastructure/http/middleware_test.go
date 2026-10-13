@@ -15,14 +15,14 @@ func TestServiceAuthMiddleware_Authenticate(t *testing.T) {
 		inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			svc, ok := ServiceFromContext(r.Context())
 			if !ok {
-				t.Fatal("le service authentifie devrait etre present dans le contexte")
+				t.Fatal("the authenticated service should be present in the context")
 			}
 			writeJSON(w, http.StatusOK, map[string]string{"service_id": svc.ID})
 		})
 		return mw.Authenticate(inner)
 	}
 
-	t.Run("laisse passer une cle API valide", func(t *testing.T) {
+	t.Run("allows a valid API key", func(t *testing.T) {
 		repo := newFakeServiceRepo()
 		svc, plainKey, _ := domain.NewService(domain.NewID(), "orders-service", "")
 		_ = repo.Create(context.Background(), svc)
@@ -34,11 +34,11 @@ func TestServiceAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(repo).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
 
-	t.Run("rejette une requete sans cle API", func(t *testing.T) {
+	t.Run("rejects a request without an API key", func(t *testing.T) {
 		repo := newFakeServiceRepo()
 
 		req := httptest.NewRequest(http.MethodGet, "/users/u1/permissions", nil)
@@ -47,23 +47,23 @@ func TestServiceAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(repo).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
 
-	t.Run("rejette une cle API invalide", func(t *testing.T) {
+	t.Run("rejects an invalid API key", func(t *testing.T) {
 		repo := newFakeServiceRepo()
 		svc, _, _ := domain.NewService(domain.NewID(), "orders-service", "")
 		_ = repo.Create(context.Background(), svc)
 
 		req := httptest.NewRequest(http.MethodGet, "/users/u1/permissions", nil)
-		req.Header.Set("X-API-Key", "cle-inventee-qui-nexiste-pas")
+		req.Header.Set("X-API-Key", "invented-nonexistent-key")
 		rec := httptest.NewRecorder()
 
 		newProtectedHandler(repo).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
 }

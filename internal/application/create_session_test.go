@@ -15,13 +15,13 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 
 	session, plainToken, err := uc.Execute(context.Background(), u.ID, "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 	if plainToken == "" {
-		t.Error("le jeton en clair ne devrait pas etre vide")
+		t.Error("the plaintext token should not be empty")
 	}
 	if session.UserID != u.ID {
-		t.Errorf("UserID = %q, attendu %q", session.UserID, u.ID)
+		t.Errorf("UserID = %q, want %q", session.UserID, u.ID)
 	}
 
 	got, err := sessions.GetByTokenHash(context.Background(), session.TokenHash)
@@ -29,7 +29,7 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 		t.Fatalf("GetByTokenHash: %v", err)
 	}
 	if got.ID != session.ID {
-		t.Errorf("session persistee = %q, attendu %q", got.ID, session.ID)
+		t.Errorf("persisted session = %q, want %q", got.ID, session.ID)
 	}
 
 	updated, err := users.GetByID(context.Background(), u.ID)
@@ -37,7 +37,7 @@ func TestCreateSessionUseCase_Execute(t *testing.T) {
 		t.Fatalf("GetByID: %v", err)
 	}
 	if updated.LastLoginAt == nil {
-		t.Error("LastLoginAt devrait etre defini apres CreateSessionUseCase.Execute")
+		t.Error("LastLoginAt should be set after CreateSessionUseCase.Execute")
 	}
 }
 
@@ -46,8 +46,8 @@ func TestCreateSessionUseCase_Execute_IgnoresRecordLoginFailure(t *testing.T) {
 	users := newFakeUserRepo()
 	uc := NewCreateSessionUseCase(sessions, users, time.Hour)
 
-	_, _, err := uc.Execute(context.Background(), "usager-inexistant", "203.0.113.1", "Mozilla/5.0")
+	_, _, err := uc.Execute(context.Background(), "nonexistent-user", "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v (RecordLogin devrait etre best-effort)", err)
+		t.Fatalf("unexpected error: %v (RecordLogin should be best-effort)", err)
 	}
 }

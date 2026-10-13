@@ -21,7 +21,7 @@ func TestRoleHandler_Create(t *testing.T) {
 	h.Create(rec, req)
 
 	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusCreated, rec.Body.String())
+		t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusCreated, rec.Body.String())
 	}
 
 	var resp roleResponse
@@ -29,10 +29,10 @@ func TestRoleHandler_Create(t *testing.T) {
 		t.Fatalf("decodage: %v", err)
 	}
 	if resp.Name != "support-agent" {
-		t.Errorf("Name = %q, attendu %q", resp.Name, "support-agent")
+		t.Errorf("Name = %q, want %q", resp.Name, "support-agent")
 	}
 	if resp.PermissionIDs == nil {
-		t.Error("PermissionIDs devrait etre une slice vide, pas nil")
+		t.Error("PermissionIDs should be an empty slice, not nil")
 	}
 }
 
@@ -44,7 +44,7 @@ func TestRoleHandler_GrantAndRevokePermission(t *testing.T) {
 	role, _ := domain.NewRole(domain.NewID(), "support-agent", "")
 	_ = roles.Create(ctx, role)
 
-	t.Run("GrantPermission ajoute la permission", func(t *testing.T) {
+	t.Run("GrantPermission adds the permission", func(t *testing.T) {
 		body := strings.NewReader(`{"permission_id":"perm-1"}`)
 		req := httptest.NewRequest(http.MethodPost, "/roles/"+role.ID+"/permissions", body)
 		req.SetPathValue("id", role.ID)
@@ -53,13 +53,13 @@ func TestRoleHandler_GrantAndRevokePermission(t *testing.T) {
 		h.GrantPermission(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 
 		var resp roleResponse
 		_ = json.NewDecoder(rec.Body).Decode(&resp)
 		if len(resp.PermissionIDs) != 1 || resp.PermissionIDs[0] != "perm-1" {
-			t.Errorf("PermissionIDs = %v, attendu [\"perm-1\"]", resp.PermissionIDs)
+			t.Errorf("PermissionIDs = %v, want [\"perm-1\"]", resp.PermissionIDs)
 		}
 	})
 
@@ -72,12 +72,12 @@ func TestRoleHandler_GrantAndRevokePermission(t *testing.T) {
 		h.RevokePermission(rec, req)
 
 		if rec.Code != http.StatusNoContent {
-			t.Fatalf("status = %d, attendu %d", rec.Code, http.StatusNoContent)
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusNoContent)
 		}
 
 		got, _ := roles.GetByID(ctx, role.ID)
 		if len(got.PermissionIDs) != 0 {
-			t.Errorf("PermissionIDs = %v, attendu vide apres revoke", got.PermissionIDs)
+			t.Errorf("PermissionIDs = %v, want empty after revoke", got.PermissionIDs)
 		}
 	})
 }
@@ -87,11 +87,11 @@ func TestRoleHandler_Update(t *testing.T) {
 	h := NewRoleHandler(roles)
 	ctx := context.Background()
 
-	role, _ := domain.NewRole(domain.NewID(), "support-agent", "ancienne description")
+	role, _ := domain.NewRole(domain.NewID(), "support-agent", "old description")
 	_ = roles.Create(ctx, role)
 
-	t.Run("200 pour une mise a jour valide", func(t *testing.T) {
-		body := strings.NewReader(`{"name":"support-agent-senior","description":"nouvelle description"}`)
+	t.Run("200 for a valid update", func(t *testing.T) {
+		body := strings.NewReader(`{"name":"support-agent-senior","description":"new description"}`)
 		req := httptest.NewRequest(http.MethodPut, "/roles/"+role.ID, body)
 		req.SetPathValue("id", role.ID)
 		rec := httptest.NewRecorder()
@@ -99,17 +99,17 @@ func TestRoleHandler_Update(t *testing.T) {
 		h.Update(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 
 		var resp roleResponse
 		_ = json.NewDecoder(rec.Body).Decode(&resp)
 		if resp.Name != "support-agent-senior" {
-			t.Errorf("Name = %q, attendu %q", resp.Name, "support-agent-senior")
+			t.Errorf("Name = %q, want %q", resp.Name, "support-agent-senior")
 		}
 	})
 
-	t.Run("400 pour un nom vide", func(t *testing.T) {
+	t.Run("400 for an empty name", func(t *testing.T) {
 		body := strings.NewReader(`{"name":"","description":""}`)
 		req := httptest.NewRequest(http.MethodPut, "/roles/"+role.ID, body)
 		req.SetPathValue("id", role.ID)
@@ -118,20 +118,20 @@ func TestRoleHandler_Update(t *testing.T) {
 		h.Update(rec, req)
 
 		if rec.Code != http.StatusBadRequest {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusBadRequest)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusBadRequest)
 		}
 	})
 
-	t.Run("404 pour un role inexistant", func(t *testing.T) {
+	t.Run("404 for a nonexistent role", func(t *testing.T) {
 		body := strings.NewReader(`{"name":"x","description":""}`)
-		req := httptest.NewRequest(http.MethodPut, "/roles/inconnu", body)
-		req.SetPathValue("id", "inconnu")
+		req := httptest.NewRequest(http.MethodPut, "/roles/unknown", body)
+		req.SetPathValue("id", "unknown")
 		rec := httptest.NewRecorder()
 
 		h.Update(rec, req)
 
 		if rec.Code != http.StatusNotFound {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNotFound)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
 		}
 	})
 }
@@ -152,12 +152,12 @@ func TestRoleHandler_List(t *testing.T) {
 	h.List(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, attendu %d", rec.Code, http.StatusOK)
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 
 	var resp []roleResponse
 	_ = json.NewDecoder(rec.Body).Decode(&resp)
 	if len(resp) != 2 {
-		t.Errorf("nombre de roles = %d, attendu 2", len(resp))
+		t.Errorf("role count = %d, want 2", len(resp))
 	}
 }

@@ -13,7 +13,7 @@ func newOKHandler() http.Handler {
 }
 
 func TestCORSMiddleware_Wrap(t *testing.T) {
-	t.Run("repond 204 a une requete preflight OPTIONS sans toucher au handler", func(t *testing.T) {
+	t.Run("returns 204 for an OPTIONS preflight request without invoking the handler", func(t *testing.T) {
 		mw := NewCORSMiddleware([]string{"http://localhost:5173"})
 
 		req := httptest.NewRequest(http.MethodOptions, "/users", nil)
@@ -23,11 +23,11 @@ func TestCORSMiddleware_Wrap(t *testing.T) {
 		mw.Wrap(newOKHandler()).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusNoContent {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusNoContent)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusNoContent)
 		}
 	})
 
-	t.Run("reflete l'origine precise quand elle est dans la liste", func(t *testing.T) {
+	t.Run("reflects the exact origin when it is in the list", func(t *testing.T) {
 		mw := NewCORSMiddleware([]string{"http://localhost:5173"})
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -37,11 +37,11 @@ func TestCORSMiddleware_Wrap(t *testing.T) {
 		mw.Wrap(newOKHandler()).ServeHTTP(rec, req)
 
 		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "http://localhost:5173" {
-			t.Errorf("Access-Control-Allow-Origin = %q, attendu %q", got, "http://localhost:5173")
+			t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, "http://localhost:5173")
 		}
 	})
 
-	t.Run("n'ajoute aucun entete CORS pour une origine non autorisee", func(t *testing.T) {
+	t.Run("does not add CORS headers for a disallowed origin", func(t *testing.T) {
 		mw := NewCORSMiddleware([]string{"http://localhost:5173"})
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -51,11 +51,11 @@ func TestCORSMiddleware_Wrap(t *testing.T) {
 		mw.Wrap(newOKHandler()).ServeHTTP(rec, req)
 
 		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
-			t.Errorf("Access-Control-Allow-Origin = %q, attendu vide pour une origine non autorisee", got)
+			t.Errorf("Access-Control-Allow-Origin = %q, want empty for a disallowed origin", got)
 		}
 	})
 
-	t.Run("utilise le wildcard litteral quand \"*\" est configure", func(t *testing.T) {
+	t.Run("uses the literal wildcard when \"*\" is configured", func(t *testing.T) {
 		mw := NewCORSMiddleware([]string{"*"})
 
 		req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -65,11 +65,11 @@ func TestCORSMiddleware_Wrap(t *testing.T) {
 		mw.Wrap(newOKHandler()).ServeHTTP(rec, req)
 
 		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "*" {
-			t.Errorf("Access-Control-Allow-Origin = %q, attendu \"*\"", got)
+			t.Errorf("Access-Control-Allow-Origin = %q, want \"*\"", got)
 		}
 	})
 
-	t.Run("laisse passer une requete normale (non-preflight) vers le handler", func(t *testing.T) {
+	t.Run("passes a normal (non-preflight) request to the handler", func(t *testing.T) {
 		mw := NewCORSMiddleware([]string{"*"})
 		called := false
 		inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +83,7 @@ func TestCORSMiddleware_Wrap(t *testing.T) {
 		mw.Wrap(inner).ServeHTTP(rec, req)
 
 		if !called {
-			t.Error("le handler interne devrait avoir ete appele pour une requete non-preflight")
+			t.Error("the inner handler should have been called for a non-preflight request")
 		}
 	})
 }

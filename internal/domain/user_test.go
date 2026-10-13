@@ -15,49 +15,49 @@ func TestNewUser(t *testing.T) {
 		wantErr  error
 	}{
 		{
-			name:     "usager valide",
+			name:     "valid user",
 			id:       "1",
 			userName: "Alice",
 			email:    "alice@example.com",
 			wantErr:  nil,
 		},
 		{
-			name:     "nom vide",
+			name:     "empty name",
 			id:       "2",
 			userName: "",
 			email:    "bob@example.com",
 			wantErr:  ErrEmptyName,
 		},
 		{
-			name:     "nom avec seulement des espaces",
+			name:     "name containing only whitespace",
 			id:       "3",
 			userName: "   ",
 			email:    "bob@example.com",
 			wantErr:  ErrEmptyName,
 		},
 		{
-			name:     "courriel sans @",
+			name:     "email without @",
 			id:       "4",
 			userName: "Bob",
 			email:    "bob-example.com",
 			wantErr:  ErrInvalidEmail,
 		},
 		{
-			name:     "courriel sans domaine",
+			name:     "email without a domain",
 			id:       "5",
 			userName: "Bob",
 			email:    "bob@",
 			wantErr:  ErrInvalidEmail,
 		},
 		{
-			name:     "courriel sans point dans le domaine",
+			name:     "email without a dot in the domain",
 			id:       "6",
 			userName: "Bob",
 			email:    "bob@examplecom",
 			wantErr:  ErrInvalidEmail,
 		},
 		{
-			name:     "courriel normalise en minuscules",
+			name:     "email normalized to lowercase",
 			id:       "7",
 			userName: "Carole",
 			email:    "CAROLE@EXAMPLE.COM",
@@ -70,7 +70,7 @@ func TestNewUser(t *testing.T) {
 			u, err := NewUser(tt.id, tt.userName, tt.email)
 
 			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("erreur = %v, attendu %v", err, tt.wantErr)
+				t.Fatalf("error = %v, want %v", err, tt.wantErr)
 			}
 
 			if tt.wantErr != nil {
@@ -78,19 +78,19 @@ func TestNewUser(t *testing.T) {
 			}
 
 			if u.ID != tt.id {
-				t.Errorf("ID = %q, attendu %q", u.ID, tt.id)
+				t.Errorf("ID = %q, want %q", u.ID, tt.id)
 			}
 			if u.Status != StatusActive {
-				t.Errorf("Status = %q, attendu %q (un nouvel usager doit etre actif)", u.Status, StatusActive)
+				t.Errorf("Status = %q, want %q (a new user should be active)", u.Status, StatusActive)
 			}
 			if u.CreatedAt.IsZero() {
-				t.Error("CreatedAt ne devrait pas etre a zero")
+				t.Error("CreatedAt should not be zero")
 			}
 			if u.CreatedAt != u.UpdatedAt {
-				t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
+				t.Error("CreatedAt and UpdatedAt should be identical at creation")
 			}
 			if u.RoleIDs == nil || u.PermissionIDs == nil {
-				t.Error("RoleIDs et PermissionIDs devraient etre initialises (slices vides, pas nil)")
+				t.Error("RoleIDs and PermissionIDs should be initialized (empty slices, not nil)")
 			}
 		})
 	}
@@ -100,13 +100,13 @@ func TestUser_IsActive(t *testing.T) {
 	u, _ := NewUser("1", "Alice", "alice@example.com")
 
 	if !u.IsActive() {
-		t.Error("un nouvel usager devrait etre actif par defaut")
+		t.Error("a new user should be active by default")
 	}
 
 	u.Suspend()
 
 	if u.IsActive() {
-		t.Error("un usager suspendu ne devrait plus etre actif")
+		t.Error("a suspended user should no longer be active")
 	}
 }
 
@@ -115,12 +115,12 @@ func TestUser_AssignRole(t *testing.T) {
 
 	u.AssignRole("role-admin")
 	if len(u.RoleIDs) != 1 || u.RoleIDs[0] != "role-admin" {
-		t.Fatalf("RoleIDs = %v, attendu [\"role-admin\"]", u.RoleIDs)
+		t.Fatalf("RoleIDs = %v, want [\"role-admin\"]", u.RoleIDs)
 	}
 
 	u.AssignRole("role-admin")
 	if len(u.RoleIDs) != 1 {
-		t.Errorf("RoleIDs = %v, un role duplique ne devrait pas etre ajoute", u.RoleIDs)
+		t.Errorf("RoleIDs = %v, a duplicate role should not be added", u.RoleIDs)
 	}
 }
 
@@ -129,53 +129,53 @@ func TestUser_AssignPermission(t *testing.T) {
 
 	u.AssignPermission("perm-orders-read")
 	if len(u.PermissionIDs) != 1 || u.PermissionIDs[0] != "perm-orders-read" {
-		t.Fatalf("PermissionIDs = %v, attendu [\"perm-orders-read\"]", u.PermissionIDs)
+		t.Fatalf("PermissionIDs = %v, want [\"perm-orders-read\"]", u.PermissionIDs)
 	}
 
 	u.AssignPermission("perm-orders-read")
 	if len(u.PermissionIDs) != 1 {
-		t.Errorf("PermissionIDs = %v, une permission dupliquee ne devrait pas etre ajoutee", u.PermissionIDs)
+		t.Errorf("PermissionIDs = %v, a duplicate permission should not be added", u.PermissionIDs)
 	}
 }
 
 func TestUser_UpdateProfile(t *testing.T) {
-	t.Run("met a jour nom et courriel valides", func(t *testing.T) {
+	t.Run("updates with a valid name and email", func(t *testing.T) {
 		u, _ := NewUser("1", "Alice", "alice@example.com")
 		u.AssignRole("role-1")
 
 		err := u.UpdateProfile("Alice Dupont", "ALICE.DUPONT@EXAMPLE.COM")
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if u.Name != "Alice Dupont" {
-			t.Errorf("Name = %q, attendu %q", u.Name, "Alice Dupont")
+			t.Errorf("Name = %q, want %q", u.Name, "Alice Dupont")
 		}
 		if u.Email != "alice.dupont@example.com" {
-			t.Errorf("Email = %q, attendu la version en minuscules", u.Email)
+			t.Errorf("Email = %q, want the lowercase version", u.Email)
 		}
 		if len(u.RoleIDs) != 1 {
-			t.Error("RoleIDs ne devrait pas etre affecte par UpdateProfile")
+			t.Error("RoleIDs should not be affected by UpdateProfile")
 		}
 	})
 
-	t.Run("rejette un nom vide sans modifier l'usager", func(t *testing.T) {
+	t.Run("rejects an empty name without modifying the user", func(t *testing.T) {
 		u, _ := NewUser("1", "Alice", "alice@example.com")
 
 		err := u.UpdateProfile("", "nouveau@example.com")
 		if err != ErrEmptyName {
-			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyName)
+			t.Errorf("error = %v, want %v", err, ErrEmptyName)
 		}
 		if u.Name != "Alice" {
-			t.Error("Name ne devrait pas avoir change apres une validation echouee")
+			t.Error("Name should not have changed after validation failed")
 		}
 	})
 
-	t.Run("rejette un courriel invalide", func(t *testing.T) {
+	t.Run("rejects an invalid email address", func(t *testing.T) {
 		u, _ := NewUser("1", "Alice", "alice@example.com")
 
-		err := u.UpdateProfile("Alice", "pas-un-courriel")
+		err := u.UpdateProfile("Alice", "not-an-email")
 		if err != ErrInvalidEmail {
-			t.Errorf("erreur = %v, attendu %v", err, ErrInvalidEmail)
+			t.Errorf("error = %v, want %v", err, ErrInvalidEmail)
 		}
 	})
 }
@@ -184,7 +184,7 @@ func TestUser_RecordLogin(t *testing.T) {
 	u, _ := NewUser("1", "Alice", "alice@example.com")
 
 	if u.LastLoginAt != nil {
-		t.Error("LastLoginAt devrait etre nil avant toute connexion")
+		t.Error("LastLoginAt should be nil before any login")
 	}
 
 	originalUpdatedAt := u.UpdatedAt
@@ -192,12 +192,12 @@ func TestUser_RecordLogin(t *testing.T) {
 	u.RecordLogin()
 
 	if u.LastLoginAt == nil {
-		t.Fatal("LastLoginAt ne devrait plus etre nil apres RecordLogin")
+		t.Fatal("LastLoginAt should no longer be nil after RecordLogin")
 	}
 	if !u.LastLoginAt.After(originalUpdatedAt) {
-		t.Error("LastLoginAt devrait etre posterieur a la creation de l'usager")
+		t.Error("LastLoginAt should be later than the user creation time")
 	}
 	if !u.UpdatedAt.After(originalUpdatedAt) {
-		t.Error("UpdatedAt devrait aussi avancer apres RecordLogin")
+		t.Error("UpdatedAt should also advance after RecordLogin")
 	}
 }

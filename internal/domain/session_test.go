@@ -6,62 +6,62 @@ import (
 )
 
 func TestNewSession(t *testing.T) {
-	t.Run("cree une session valide", func(t *testing.T) {
+	t.Run("creates a valid session", func(t *testing.T) {
 		s, plainToken, err := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if plainToken == "" {
-			t.Error("le jeton en clair ne devrait pas etre vide")
+			t.Error("the plaintext token should not be empty")
 		}
 		if s.TokenHash == plainToken {
-			t.Error("TokenHash ne devrait jamais etre egal au jeton en clair")
+			t.Error("TokenHash should never equal the plaintext token")
 		}
 		if !s.ExpiresAt.After(s.CreatedAt) {
-			t.Error("ExpiresAt devrait etre apres CreatedAt")
+			t.Error("ExpiresAt should be after CreatedAt")
 		}
 		if s.IPAddress != "203.0.113.1" {
-			t.Errorf("IPAddress = %q, attendu %q", s.IPAddress, "203.0.113.1")
+			t.Errorf("IPAddress = %q, want %q", s.IPAddress, "203.0.113.1")
 		}
 		if s.UserAgent != "Mozilla/5.0" {
-			t.Errorf("UserAgent = %q, attendu %q", s.UserAgent, "Mozilla/5.0")
+			t.Errorf("UserAgent = %q, want %q", s.UserAgent, "Mozilla/5.0")
 		}
 	})
 
-	t.Run("accepte une IP et un User-Agent vides", func(t *testing.T) {
+	t.Run("accepts empty IP and User-Agent values", func(t *testing.T) {
 		s, _, err := NewSession("1", "user-1", "", "", time.Hour)
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if s.IPAddress != "" || s.UserAgent != "" {
-			t.Error("IPAddress/UserAgent vides ne devraient pas etre une erreur de validation")
+			t.Error("Empty IPAddress/UserAgent values should not cause a validation error")
 		}
 	})
 
-	t.Run("rejette un userID vide", func(t *testing.T) {
+	t.Run("rejects an empty userID", func(t *testing.T) {
 		_, _, err := NewSession("1", "", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		if err != ErrEmptyUserID {
-			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyUserID)
+			t.Errorf("error = %v, want %v", err, ErrEmptyUserID)
 		}
 	})
 
-	t.Run("rejette une duree de vie nulle ou negative", func(t *testing.T) {
+	t.Run("rejects a zero or negative TTL", func(t *testing.T) {
 		_, _, err := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", 0)
 		if err != ErrInvalidTTL {
-			t.Errorf("erreur = %v, attendu %v", err, ErrInvalidTTL)
+			t.Errorf("error = %v, want %v", err, ErrInvalidTTL)
 		}
 
 		_, _, err = NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", -time.Hour)
 		if err != ErrInvalidTTL {
-			t.Errorf("erreur = %v, attendu %v", err, ErrInvalidTTL)
+			t.Errorf("error = %v, want %v", err, ErrInvalidTTL)
 		}
 	})
 
-	t.Run("genere un jeton different a chaque appel", func(t *testing.T) {
+	t.Run("generates a different token on each call", func(t *testing.T) {
 		_, token1, _ := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		_, token2, _ := NewSession("2", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		if token1 == token2 {
-			t.Error("deux sessions ne devraient jamais recevoir le meme jeton")
+			t.Error("two sessions should never receive the same token")
 		}
 	})
 }
@@ -70,26 +70,26 @@ func TestSession_VerifyToken(t *testing.T) {
 	s, plainToken, _ := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 
 	if !s.VerifyToken(plainToken) {
-		t.Error("VerifyToken devrait retourner true pour le bon jeton")
+		t.Error("VerifyToken should return true for the correct token")
 	}
-	if s.VerifyToken("mauvais-jeton") {
-		t.Error("VerifyToken devrait retourner false pour un mauvais jeton")
+	if s.VerifyToken("incorrect-token") {
+		t.Error("VerifyToken should return false for an incorrect token")
 	}
 }
 
 func TestSession_IsExpired(t *testing.T) {
-	t.Run("une session fraiche n'est pas expiree", func(t *testing.T) {
+	t.Run("a fresh session is not expired", func(t *testing.T) {
 		s, _, _ := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		if s.IsExpired() {
-			t.Error("une session valide pour 1h ne devrait pas etre expiree")
+			t.Error("a session valid for 1h should not be expired")
 		}
 	})
 
-	t.Run("une session avec ExpiresAt dans le passe est expiree", func(t *testing.T) {
+	t.Run("a session with ExpiresAt in the past is expired", func(t *testing.T) {
 		s, _, _ := NewSession("1", "user-1", "203.0.113.1", "Mozilla/5.0", time.Hour)
 		s.ExpiresAt = time.Now().UTC().Add(-time.Minute)
 		if !s.IsExpired() {
-			t.Error("une session dont ExpiresAt est dans le passe devrait etre expiree")
+			t.Error("a session whose ExpiresAt is in the past should be expired")
 		}
 	})
 }
@@ -103,10 +103,10 @@ func TestSession_Touch(t *testing.T) {
 	s.Touch()
 
 	if !s.LastUsedAt.After(original) {
-		t.Error("LastUsedAt devrait avoir avance apres Touch")
+		t.Error("LastUsedAt should have advanced after Touch")
 	}
 	if s.ExpiresAt != originalExpiry {
-		t.Error("Touch ne devrait PAS modifier ExpiresAt (pas de sliding session)")
+		t.Error("Touch should NOT modify ExpiresAt (no sliding session)")
 	}
 }
 
@@ -120,9 +120,9 @@ func TestSession_IsSuspicious(t *testing.T) {
 		userAgent string
 		want      bool
 	}{
-		{"IP et User-Agent identiques", originalIP, originalUA, false},
-		{"seule l'IP change (reseau mobile)", "198.51.100.9", originalUA, false},
-		{"seul le User-Agent change (mise a jour navigateur)", originalIP, "Mozilla/5.0 (Mac)", false},
+		{"identical IP and User-Agent", originalIP, originalUA, false},
+		{"only the IP changes (mobile network)", "198.51.100.9", originalUA, false},
+		{"only the User-Agent changes (browser update)", originalIP, "Mozilla/5.0 (Mac)", false},
 		{"IP et User-Agent changent tous les deux", "198.51.100.9", "Mozilla/5.0 (Mac)", true},
 	}
 
@@ -132,7 +132,7 @@ func TestSession_IsSuspicious(t *testing.T) {
 
 			got := s.IsSuspicious(tt.ip, tt.userAgent)
 			if got != tt.want {
-				t.Errorf("IsSuspicious(%q, %q) = %v, attendu %v", tt.ip, tt.userAgent, got, tt.want)
+				t.Errorf("IsSuspicious(%q, %q) = %v, want %v", tt.ip, tt.userAgent, got, tt.want)
 			}
 		})
 	}

@@ -12,7 +12,7 @@ import (
 func TestAdminRole_HasAllApplicationPermissions(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
-		t.Fatalf("connexion: %v", err)
+		t.Fatalf("connect: %v", err)
 	}
 	defer pool.Close()
 	ctx := context.Background()
@@ -22,7 +22,7 @@ func TestAdminRole_HasAllApplicationPermissions(t *testing.T) {
 
 	adminRole, err := roleRepo.GetByID(ctx, application.AdminRoleID)
 	if err != nil {
-		t.Fatalf("GetByID(AdminRoleID): %v -- la migration 000013 a-t-elle bien ete appliquee ?", err)
+		t.Fatalf("GetByID(AdminRoleID): %v -- was migration 000013 applied?", err)
 	}
 
 	grantedPermissions, err := permissionRepo.ListByIDs(ctx, adminRole.PermissionIDs)
@@ -38,7 +38,7 @@ func TestAdminRole_HasAllApplicationPermissions(t *testing.T) {
 	for _, key := range application.AllPermissionKeys {
 		if !grantedKeys[key] {
 			t.Errorf(
-				"le role admin n'a PAS la permission %q -- verifie qu'une migration l'accorde bien via role_permissions (voir 000013/000014/000015 pour des exemples)",
+				"the admin role is missing permission %q -- verify that a migration grants it via role_permissions (see 000013/000014/000015 for examples)",
 				key,
 			)
 		}

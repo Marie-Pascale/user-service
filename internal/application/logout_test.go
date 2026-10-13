@@ -16,7 +16,7 @@ func TestLogoutUseCase_Execute(t *testing.T) {
 
 	session, _, err := createSession.Execute(context.Background(), u.ID, "203.0.113.1", "Mozilla/5.0")
 	if err != nil {
-		t.Fatalf("creation de la session: %v", err)
+		t.Fatalf("create session: %v", err)
 	}
 
 	if err := logout.Execute(context.Background(), session.ID); err != nil {
@@ -25,6 +25,6 @@ func TestLogoutUseCase_Execute(t *testing.T) {
 
 	_, err = sessions.GetByTokenHash(context.Background(), session.TokenHash)
 	if !errors.Is(err, ErrNotFound) {
-		t.Errorf("erreur apres logout = %v, attendu %v", err, ErrNotFound)
+		t.Errorf("error after logout = %v, want %v", err, ErrNotFound)
 	}
 }

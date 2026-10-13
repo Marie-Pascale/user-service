@@ -15,7 +15,7 @@ import (
 func TestPostgresSessionRepository_CreateAndGetByTokenHash(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
-		t.Fatalf("connexion: %v", err)
+		t.Fatalf("connect: %v", err)
 	}
 	defer pool.Close()
 	ctx := context.Background()
@@ -25,13 +25,13 @@ func TestPostgresSessionRepository_CreateAndGetByTokenHash(t *testing.T) {
 
 	u, _ := domain.NewUser(domain.NewID(), "Session Test", "session-repo-test@example.com")
 	if err := userRepo.Create(ctx, u); err != nil {
-		t.Fatalf("creation de l'usager: %v", err)
+		t.Fatalf("create user: %v", err)
 	}
 	t.Cleanup(func() { _ = userRepo.Delete(ctx, u.ID) })
 
 	session, plainToken, err := domain.NewSession(domain.NewID(), u.ID, "203.0.113.1", "Mozilla/5.0", time.Hour)
 	if err != nil {
-		t.Fatalf("construction: %v", err)
+		t.Fatalf("setup: %v", err)
 	}
 	if err := sessionRepo.Create(ctx, session); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -43,31 +43,31 @@ func TestPostgresSessionRepository_CreateAndGetByTokenHash(t *testing.T) {
 		t.Fatalf("GetByTokenHash: %v", err)
 	}
 	if got.IPAddress != "203.0.113.1" {
-		t.Errorf("IPAddress = %q, attendu %q", got.IPAddress, "203.0.113.1")
+		t.Errorf("IPAddress = %q, want %q", got.IPAddress, "203.0.113.1")
 	}
 	if got.UserAgent != "Mozilla/5.0" {
-		t.Errorf("UserAgent = %q, attendu %q", got.UserAgent, "Mozilla/5.0")
+		t.Errorf("UserAgent = %q, want %q", got.UserAgent, "Mozilla/5.0")
 	}
 }
 
 func TestPostgresSessionRepository_GetByTokenHash_NotFound(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
-		t.Fatalf("connexion: %v", err)
+		t.Fatalf("connect: %v", err)
 	}
 	defer pool.Close()
 	sessionRepo := NewPostgresSessionRepository(pool)
 
-	_, err = sessionRepo.GetByTokenHash(context.Background(), "hash-inexistant")
+	_, err = sessionRepo.GetByTokenHash(context.Background(), "nonexistent-hash")
 	if !errors.Is(err, application.ErrNotFound) {
-		t.Errorf("erreur = %v, attendu %v", err, application.ErrNotFound)
+		t.Errorf("error = %v, want %v", err, application.ErrNotFound)
 	}
 }
 
 func TestPostgresSessionRepository_Touch(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
-		t.Fatalf("connexion: %v", err)
+		t.Fatalf("connect: %v", err)
 	}
 	defer pool.Close()
 	ctx := context.Background()
@@ -92,14 +92,14 @@ func TestPostgresSessionRepository_Touch(t *testing.T) {
 		t.Fatalf("GetByTokenHash: %v", err)
 	}
 	if !got.LastUsedAt.After(session.CreatedAt) {
-		t.Error("LastUsedAt devrait avoir avance en base apres Touch")
+		t.Error("LastUsedAt should have advanced in the database after Touch")
 	}
 }
 
 func TestPostgresSessionRepository_DeleteAllForUser(t *testing.T) {
 	pool, err := NewPool(context.Background(), ConfigFromEnv())
 	if err != nil {
-		t.Fatalf("connexion: %v", err)
+		t.Fatalf("connect: %v", err)
 	}
 	defer pool.Close()
 	ctx := context.Background()
@@ -121,9 +121,9 @@ func TestPostgresSessionRepository_DeleteAllForUser(t *testing.T) {
 	}
 
 	if _, err := sessionRepo.GetByTokenHash(ctx, s1.TokenHash); !errors.Is(err, application.ErrNotFound) {
-		t.Errorf("s1 devrait avoir ete supprimee, erreur = %v", err)
+		t.Errorf("s1 should have been deleted, error = %v", err)
 	}
 	if _, err := sessionRepo.GetByTokenHash(ctx, s2.TokenHash); !errors.Is(err, application.ErrNotFound) {
-		t.Errorf("s2 devrait avoir ete supprimee, erreur = %v", err)
+		t.Errorf("s2 should have been deleted, error = %v", err)
 	}
 }

@@ -19,14 +19,14 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, ok := UserFromContext(r.Context())
 			if !ok {
-				t.Fatal("l'usager authentifie devrait etre present dans le contexte")
+				t.Fatal("the authenticated user should be present in the context")
 			}
 			writeJSON(w, http.StatusOK, map[string]string{"user_id": u.ID})
 		})
 		return mw.Authenticate(inner)
 	}
 
-	t.Run("laisse passer une session valide (IP et User-Agent identiques)", func(t *testing.T) {
+	t.Run("allows a valid session (identical IP and User-Agent)", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
@@ -44,11 +44,11 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d. Corps: %s", rec.Code, http.StatusOK, rec.Body.String())
+			t.Fatalf("status = %d, want %d. Body: %s", rec.Code, http.StatusOK, rec.Body.String())
 		}
 	})
 
-	t.Run("laisse passer si SEULE l'IP differe (reseau mobile)", func(t *testing.T) {
+	t.Run("allows the request when ONLY the IP differs (mobile network)", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
@@ -66,18 +66,18 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusOK {
-			t.Fatalf("status = %d, attendu %d (un seul changement ne devrait pas etre bloquant)", rec.Code, http.StatusOK)
+			t.Fatalf("status = %d, want %d (a single change should not be blocking)", rec.Code, http.StatusOK)
 		}
 	})
 
-	t.Run("rejette et revoque si IP ET User-Agent different tous les deux", func(t *testing.T) {
+	t.Run("rejects and revokes the session if BOTH IP and User-Agent differ", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
 		u := mustNewUser(t, "Alice", "alice@example.com")
 		_ = users.Create(context.Background(), u)
 
-		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, "203.0.113.9", "Mozilla/5.0 (autre appareil)", time.Hour)
+		session, plainToken, _ := domain.NewSession(domain.NewID(), u.ID, "203.0.113.9", "Mozilla/5.0 (other device)", time.Hour)
 		_ = sessions.Create(context.Background(), session)
 
 		req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -88,14 +88,14 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 		if _, ok := sessions.byID[session.ID]; ok {
-			t.Error("une session suspecte (IP + User-Agent differents) devrait avoir ete revoquee")
+			t.Error("a suspicious session (different IP + User-Agent) should have been revoked")
 		}
 	})
 
-	t.Run("rejette une requete sans entete Authorization", func(t *testing.T) {
+	t.Run("rejects a request without an Authorization header", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
@@ -105,11 +105,11 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
 
-	t.Run("rejette un jeton invalide", func(t *testing.T) {
+	t.Run("rejects an invalid token", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
@@ -120,11 +120,11 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 	})
 
-	t.Run("rejette une session expiree et la supprime", func(t *testing.T) {
+	t.Run("rejects and deletes an expired session", func(t *testing.T) {
 		users := newFakeUserRepo()
 		sessions := newFakeSessionRepo()
 
@@ -143,11 +143,11 @@ func TestUserAuthMiddleware_Authenticate(t *testing.T) {
 		newProtectedHandler(sessions, users).ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusUnauthorized {
-			t.Errorf("status = %d, attendu %d", rec.Code, http.StatusUnauthorized)
+			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 		}
 
 		if _, ok := sessions.byID[session.ID]; ok {
-			t.Error("une session expiree devrait avoir ete supprimee")
+			t.Error("an expired session should have been deleted")
 		}
 	})
 }

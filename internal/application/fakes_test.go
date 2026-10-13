@@ -458,10 +458,10 @@ func mustNewTestUser(t *testing.T, users *fakeUserRepo, name, email string) *dom
 	t.Helper()
 	u, err := domain.NewUser(domain.NewID(), name, email)
 	if err != nil {
-		t.Fatalf("construction de l'usager de test: %v", err)
+		t.Fatalf("create test user: %v", err)
 	}
 	if err := users.Create(context.Background(), u); err != nil {
-		t.Fatalf("persistance de l'usager de test: %v", err)
+		t.Fatalf("persist test user: %v", err)
 	}
 	return u
 }

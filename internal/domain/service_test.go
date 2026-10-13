@@ -6,43 +6,43 @@ import (
 )
 
 func TestNewService(t *testing.T) {
-	t.Run("cree un service valide avec une cle API", func(t *testing.T) {
+	t.Run("creates a valid service with an API key", func(t *testing.T) {
 		svc, plainKey, err := NewService("1", "orders-service", "gere les commandes")
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if svc.Name != "orders-service" {
-			t.Errorf("Name = %q, attendu %q", svc.Name, "orders-service")
+			t.Errorf("Name = %q, want %q", svc.Name, "orders-service")
 		}
 		if plainKey == "" {
-			t.Error("la cle API en clair ne devrait pas etre vide")
+			t.Error("the plaintext API key should not be empty")
 		}
 		if svc.APIKeyHash == "" {
-			t.Error("APIKeyHash ne devrait pas etre vide")
+			t.Error("APIKeyHash should not be empty")
 		}
 		if svc.APIKeyHash == plainKey {
-			t.Error("APIKeyHash ne devrait jamais etre egal a la cle en clair")
+			t.Error("APIKeyHash should never equal the plaintext key")
 		}
 		if svc.CreatedAt.IsZero() {
-			t.Error("CreatedAt ne devrait pas etre a zero")
+			t.Error("CreatedAt should not be zero")
 		}
 		if svc.CreatedAt != svc.UpdatedAt {
-			t.Error("CreatedAt et UpdatedAt devraient etre identiques a la creation")
+			t.Error("CreatedAt and UpdatedAt should be identical at creation")
 		}
 	})
 
-	t.Run("rejette un nom vide", func(t *testing.T) {
+	t.Run("rejects an empty name", func(t *testing.T) {
 		_, _, err := NewService("1", "", "description")
 		if err != ErrEmptyServiceName {
-			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyServiceName)
+			t.Errorf("error = %v, want %v", err, ErrEmptyServiceName)
 		}
 	})
 
-	t.Run("genere une cle differente a chaque appel", func(t *testing.T) {
+	t.Run("generates a different key on each call", func(t *testing.T) {
 		_, key1, _ := NewService("1", "svc-a", "")
 		_, key2, _ := NewService("2", "svc-b", "")
 		if key1 == key2 {
-			t.Error("deux services ne devraient jamais recevoir la meme cle API")
+			t.Error("two services should never receive the same API key")
 		}
 	})
 }
@@ -50,15 +50,15 @@ func TestNewService(t *testing.T) {
 func TestService_VerifyAPIKey(t *testing.T) {
 	svc, plainKey, _ := NewService("1", "orders-service", "")
 
-	t.Run("accepte la bonne cle", func(t *testing.T) {
+	t.Run("accepts the correct key", func(t *testing.T) {
 		if !svc.VerifyAPIKey(plainKey) {
-			t.Error("VerifyAPIKey devrait retourner true pour la bonne cle")
+			t.Error("VerifyAPIKey should return true for the correct key")
 		}
 	})
 
-	t.Run("rejette une mauvaise cle", func(t *testing.T) {
-		if svc.VerifyAPIKey("mauvaise-cle") {
-			t.Error("VerifyAPIKey devrait retourner false pour une mauvaise cle")
+	t.Run("rejects an incorrect key", func(t *testing.T) {
+		if svc.VerifyAPIKey("incorrect-key") {
+			t.Error("VerifyAPIKey should return false for an incorrect key")
 		}
 	})
 }
@@ -70,49 +70,49 @@ func TestService_RotateAPIKey(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	newKey, err := svc.RotateAPIKey()
 	if err != nil {
-		t.Fatalf("erreur inattendue: %v", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if newKey == oldKey {
-		t.Error("la nouvelle cle ne devrait pas etre identique a l'ancienne")
+		t.Error("the new key should not be identical to the old key")
 	}
 	if svc.VerifyAPIKey(oldKey) {
-		t.Error("l'ancienne cle ne devrait plus etre valide apres rotation")
+		t.Error("the old key should no longer be valid after rotation")
 	}
 	if !svc.VerifyAPIKey(newKey) {
-		t.Error("la nouvelle cle devrait etre valide apres rotation")
+		t.Error("the new key should be valid after rotation")
 	}
 	if !svc.UpdatedAt.After(originalUpdatedAt) {
-		t.Error("UpdatedAt devrait avancer apres RotateAPIKey")
+		t.Error("UpdatedAt should advance after RotateAPIKey")
 	}
 }
 
 func TestService_UpdateDetails(t *testing.T) {
-	t.Run("met a jour nom et description sans toucher a la cle", func(t *testing.T) {
-		svc, plainKey, _ := NewService("1", "orders-service", "ancienne description")
+	t.Run("updates name and description without changing the key", func(t *testing.T) {
+		svc, plainKey, _ := NewService("1", "orders-service", "old description")
 		hashBefore := svc.APIKeyHash
 
-		err := svc.UpdateDetails("orders-service-v2", "nouvelle description")
+		err := svc.UpdateDetails("orders-service-v2", "new description")
 		if err != nil {
-			t.Fatalf("erreur inattendue: %v", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if svc.Name != "orders-service-v2" {
-			t.Errorf("Name = %q, attendu %q", svc.Name, "orders-service-v2")
+			t.Errorf("Name = %q, want %q", svc.Name, "orders-service-v2")
 		}
 		if svc.APIKeyHash != hashBefore {
-			t.Error("APIKeyHash ne devrait pas changer suite a UpdateDetails")
+			t.Error("APIKeyHash should not change after UpdateDetails")
 		}
 		if !svc.VerifyAPIKey(plainKey) {
-			t.Error("la cle existante devrait rester valide apres UpdateDetails")
+			t.Error("the existing key should remain valid after UpdateDetails")
 		}
 	})
 
-	t.Run("rejette un nom vide", func(t *testing.T) {
+	t.Run("rejects an empty name", func(t *testing.T) {
 		svc, _, _ := NewService("1", "orders-service", "")
 
 		err := svc.UpdateDetails("", "description")
 		if err != ErrEmptyServiceName {
-			t.Errorf("erreur = %v, attendu %v", err, ErrEmptyServiceName)
+			t.Errorf("error = %v, want %v", err, ErrEmptyServiceName)
 		}
 	})
 }
