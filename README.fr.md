@@ -2,6 +2,10 @@
 
 API de gestion d'usagers écrite en Go, avec PostgreSQL comme base de données.
 
+## Notes de conception et avertissements
+
+Ce projet a été développé avec l'aide d'outils d'IA, sous ma direction. Claude et GitHub Copilot ont été utilisés à différentes étapes de son développement.
+
 ## Structure du projet
 
 ```
@@ -304,3 +308,11 @@ Chaque `Session` enregistre l'IP et le `User-Agent` du client **au moment de la 
 - Vrai flot de vérification OAuth (Google, Facebook) : échange de code d'autorisation + validation du jeton signé auprès du fournisseur, pour pouvoir enfin brancher `RegisterUserUseCase.ExecuteOAuth` sur un handler HTTP public en toute sécurité
 - Purge périodique des sessions expirées (actuellement, une session expirée n'est supprimée qu'au moment où elle est *utilisée* — voir `UserAuthMiddleware`)
 - Tests de charge pour les nouveaux endpoints critiques (voir `loadtest/README.md`)
+
+## Licence
+
+Ce projet est distribué sous la licence [GNU Affero General Public License v3.0 ou ultérieure](LICENSE.md) (AGPL-3.0-or-later). Un résumé en français, à titre indicatif, est disponible dans [LICENSE.fr.md](LICENSE.fr.md); seul le texte anglais fait foi.
+
+En bref : vous pouvez utiliser, modifier et redistribuer ce logiciel, à condition de conserver la même licence et de fournir le code source. Si vous exploitez une version modifiée comme service accessible par le réseau, vous devez offrir le code source de cette version à ses utilisateurs.
+
+Copyright © 2026 Marie-Pascale Girard

@@ -2,6 +2,10 @@
 
 A user management API written in Go, with PostgreSQL as its database.
 
+## Design notes and disclaimers
+
+This project was developed with assistance from Claude and GitHub Copilot, under my direction.
+
 ## Project structure
 
 ```
@@ -304,3 +308,11 @@ Each `Session` records the client's IP and `User-Agent` **at login time** (`POST
 - A complete OAuth verification flow (Google, Facebook): authorization code exchange + signed token validation with the provider, so `RegisterUserUseCase.ExecuteOAuth` can eventually be safely connected to a public HTTP handler
 - Periodic cleanup of expired sessions (currently, an expired session is only deleted when it is *used* — see `UserAuthMiddleware`)
 - Load tests for new critical endpoints (see `loadtest/README.md`)
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE.md) (AGPL-3.0-or-later). A French summary, for information only, is available in [LICENSE.fr.md](LICENSE.fr.md); only the English text is legally binding.
+
+In short: you may use, modify and redistribute this software, provided you keep the same license and make the source code available. If you run a modified version as a network-accessible service, you must offer the source code of that version to its users.
+
+Copyright © 2026 Marie-Pascale Girard
